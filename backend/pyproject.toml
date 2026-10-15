@@ -3,10 +3,17 @@ name = "assistant-prof"
 version = "0.1.0"
 description = "Backend sidecar of Assistant Prof: edits and creates Word documents for teachers."
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "fastapi>=0.143.2",
+    "platformdirs>=4.13.0",
+    "pydantic-settings>=2.16.0",
+    "structlog>=26.1.0",
+    "uvicorn>=0.54.0",
+]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
@@ -53,8 +60,9 @@ line-ending = "lf"
 strict = true
 python_version = "3.12"
 mypy_path = "src"
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 warn_unreachable = true
+explicit_package_bases = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -71,3 +79,4 @@ xfail_strict = true
 [tool.coverage.run]
 branch = true
 source = ["assistant_prof"]
+omit = ["*/assistant_prof/__main__.py"]  # two lines, exercised by the end-to-end test

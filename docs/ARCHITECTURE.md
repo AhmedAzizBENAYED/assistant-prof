@@ -94,14 +94,16 @@ Text boxes, equations, SmartArt, charts and floating images are **never modified
 ```
 
 **Sidecar lifecycle**
-1. Tauri picks a free port and generates a 32-byte random session token.
-2. Tauri spawns the backend with `--port` and the token in an environment variable.
-3. The backend binds **127.0.0.1 only** and rejects any request without the token, including `/health`.
-4. Tauri polls `/health` (timeout 20 s, then a French error screen with "Réessayer" and "Exporter le diagnostic").
+1. Tauri generates a 32-byte random session token.
+2. Tauri spawns the backend with `--port 0` and the token in the `ASSISTANT_PROF_TOKEN` environment variable (never on the command line, which other processes can read). The backend refuses to start (exit code 2, English message on stderr) if the token is missing or shorter than 32 characters.
+3. The backend binds **127.0.0.1 only** on a port chosen by the OS and, once it is listening, writes exactly one JSON line to stdout: `{"event":"ready","port":<port>,"version":"<version>"}`. Nothing else is ever written to stdout (logs go to the log file, plus stderr in dev mode). Reading the port from the backend removes the race where Tauri picks a free port that another process takes before the backend binds it (ADR-038). The backend rejects any request without the token, including `/health`.
+4. Tauri waits for the ready line (timeout 20 s, then a French error screen with "Réessayer" and "Exporter le diagnostic"). `/health` remains available for liveness checks.
 5. The frontend gets `{port, token}` through a Tauri command, never from the URL.
 6. On window close, Tauri asks the backend to shut down gracefully (`POST /shutdown`), then kills the process tree after 3 s.
 7. Single-instance plugin: a second launch focuses the existing window.
 8. If the backend crashes, Tauri restarts it once and shows a non-blocking notice; the second crash shows the error screen.
+
+**Backend command line** (`python -m assistant_prof`, ADR-038): `--port N` (required; `0` = OS-assigned), `--data-dir PATH` (default: the per-user data directory, §7.9), `--dev` (adds the Vite dev origin to CORS, copies logs to stderr, serves `/docs`; refused in packaged builds). Other settings come from `ASSISTANT_PROF_*` environment variables (`TOKEN`, `LOG_LEVEL`, `CORS_ORIGINS`); command-line values win over the environment. `just backend` runs the backend alone in dev mode with a fresh random token printed once and its data in `backend/build/dev-data`.
 
 ---
 
@@ -492,7 +494,10 @@ Event types: `step` (`analyse`, `planification`, `validation`, `rédaction`, `ap
 
 ## 12. API (FastAPI)
 
-All routes require `X-Session-Token`. Errors use RFC 9457 problem details with a stable `code` and a French `detail`.
+All routes require `X-Session-Token`. Errors use RFC 9457 problem details (`application/problem+json`) with a stable `code` and a French `detail`:
+- body: `type` (`urn:assistant-prof:problem:<code>`), `title` and `detail` (French), `status`, `code`, `correlation_id`; validation errors (422 `validation_error`) add `errors` with the location and type of each problem, never the input values;
+- unknown routes and wrong methods are problems too (`not_found`, `method_not_allowed`); an unexpected exception returns 500 `internal_error` without internal details (the cause is logged);
+- every response carries `X-Correlation-ID`: the client's value when it is valid (8–64 characters of `[A-Za-z0-9._-]`), otherwise a generated one; it is bound to every log line of the request.
 
 | Route | Purpose |
 |---|---|
@@ -544,7 +549,7 @@ Feature folders; generated API types only; TanStack Query for all server data; S
 
 ## 14. Security
 - Keys in Windows Credential Manager via `keyring`; never logged; redaction filter in the logger and the diagnostics export.
-- Backend bound to 127.0.0.1, random port, session token, CORS limited to `http://tauri.localhost` (Tauri 2 on Windows) and, in dev mode only, the Vite dev origin.
+- Backend bound to 127.0.0.1, OS-assigned port, session token compared in constant time, CORS limited to a configurable list defaulting to `http://tauri.localhost` and `https://tauri.localhost` (Tauri 2 on Windows) and, in dev mode only, the Vite dev origin `http://localhost:5173`. CORS sits outside the token check, so preflight requests need no token and error responses carry CORS headers.
 - `--fake-llm` (§9.7) is refused in packaged builds.
 - Tauri CSP: `connect-src` limited to `http://127.0.0.1:*` (and the update endpoint in the Rust side); minimal capabilities; no shell access from the frontend.
 - **Prompt injection:** document text is delimited and labelled as data; the model can only produce operations from the closed catalogue, validated before execution; worst case is a bad proposal the teacher rejects.
@@ -553,6 +558,9 @@ Feature folders; generated API types only; TanStack Query for all server data; S
 
 ## 15. Observability
 Structured JSON logs (rotating, 5 × 5 MB), correlation ID per instruction across agent nodes and LLM calls; metrics in logs (latency, calls per instruction, fallback count). "Exporter le diagnostic" builds a redacted zip. No telemetry.
+- File: `logs\assistant-prof.log` in the data directory, one JSON object per line (structlog for our code, the same formatter for stdlib and Uvicorn records); rotation at 5 MB keeping 5 files. Dev mode also writes to stderr; nothing is ever logged to stdout (§4).
+- Each HTTP request is logged once (method, path, status, duration) with its correlation ID.
+- Redaction filter, applied last to every record, tracebacks included: values of secret-like keys (`token`, `api_key`, `authorization`, `password`, `secret`, names ending in `_key`, `_token`, `_secret`, `_password`; counters such as `prompt_tokens` stay visible), provider-key and bearer-token patterns inside any string, and the session token value itself.
 
 ## 16. Packaging and release
 - **Walking skeleton first** (T-006, ADR-035): right after the backend core, a `/health`-only backend is packaged with PyInstaller onedir and started from Tauri; bundle size, cold start and idle RSS are recorded against §2 budgets. The measurement is repeated after LangGraph is added (gate in ADR-029).

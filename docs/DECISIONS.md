@@ -229,3 +229,17 @@ Accepted · 2026-10-15
   - `actionlint` runs as a pre-commit hook (`actionlint-py`, ships the binary, no Go toolchain).
 - **Why:** direct pushes keep a solo workflow simple, and checking `ci-ok` after each push still catches breakage at once; a full warm run costs a few minutes, a docs-only commit about one; supply-chain risk from tag-moved actions is removed; Dependabot noise and the CI runs it triggers stay bounded.
 - **Cost:** audits are warnings, not gates, until the dependency set settles; tighten them later. Changes outside the filtered paths (e.g. `.pre-commit-config.yaml`) do not trigger the stack jobs.
+
+### ADR-038, Backend startup contract and ready-line port handshake
+Accepted · 2026-10-15
+- **Context:** ARCHITECTURE §4 had Tauri pick a free port, pass it to the backend and poll `/health`. Between the moment Tauri checks the port and the moment the backend binds it, another process can take it (a race), and polling adds latency to the cold start.
+- **Decision:**
+  - the backend accepts `--port 0`, binds 127.0.0.1 on an OS-assigned port and, once listening, writes exactly one line to stdout: `{"event":"ready","port":<port>,"version":"<version>"}`. stdout carries nothing else: logs go to the log file (and stderr in dev mode), and `sys.stdout` is redirected to stderr for the whole run so a stray `print` cannot break the handshake. Tauri (T-006, T-801) reads this line instead of choosing a port and polling `/health`;
+  - the session token comes only from `ASSISTANT_PROF_TOKEN` (no `--token` argument: command lines are visible to other processes) and must be at least 32 characters; startup errors exit with code 2 and an English message on stderr that never echoes input values;
+  - `--dev` (Vite dev origin in CORS, logs copied to stderr, `/docs`) is refused in packaged (frozen) builds, like `--fake-llm` (ADR-034);
+  - `--data-dir` overrides the data directory; it is what T-801 uses to pass the Tauri app data directory (open point of ADR-036);
+  - CORS origins are a setting (default `http://tauri.localhost`, `https://tauri.localhost`); the dev origin is added only in dev mode;
+  - `just backend` runs the backend alone in dev mode with a fresh random token printed once (no fixed dev token anywhere), `--port 0` and data in `backend/build/dev-data`;
+  - Uvicorn runs with its lightest settings (`h11`, no websockets, asyncio loop, no access log: the request middleware logs each request with its correlation ID), and middleware is pure ASGI so streaming responses (SSE) are not buffered.
+- **Why:** no port race, a faster and simpler handshake, and no secret on the command line.
+- **Cost:** the Rust side must read the child's stdout line by line (with a timeout) instead of only polling HTTP; nothing in the backend may ever write to the real stdout.

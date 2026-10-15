@@ -37,7 +37,7 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
   - Dependabot for pip (uv), npm, cargo, actions.
   - **Acceptance:** CI green on both OSes; a failing test makes CI red.
 
-- [ ] **T-003 · Backend core** · M · Depends on: T-001
+- [x] **T-003 · Backend core** · M · Depends on: T-001
   - `core/config.py` (pydantic-settings; CLI args `--port`, env `ASSISTANT_PROF_TOKEN`, data dir override for tests), `core/paths.py` (platformdirs: `%APPDATA%\AssistantProf`), `core/logging.py` (structlog JSON, rotating 5×5 MB, correlation ID context, redaction filter), `core/errors.py` (typed hierarchy + codes), `core/ids.py`, `core/clock.py` (injectable time).
   - `api/app.py` app factory; token middleware; problem-details handlers; `GET /health`, `POST /shutdown`; CORS for `http://tauri.localhost` and, in dev mode only, the Vite dev origin.
   - Entry point `python -m assistant_prof --port N`.
@@ -48,6 +48,7 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
   - Minimal Tauri Rust code: pick a free port, generate the session token, spawn the packaged backend, wait for `/health`, kill it on exit (T-801 hardens this later).
   - Re-runnable measurement script, exposed as `just measure` (add it to the CLAUDE.md command table): backend bundle size, cold start until the first authorised `/health` 200, idle RSS of the backend and of the whole app. Results written to `docs/reports/`.
   - The measurement is repeated after LangGraph is added (T-402) against the gate in ADR-029.
+  - **Note (ADR-038):** use the ready-line handshake instead of picking a port and polling `/health`: spawn the backend with `--port 0` and the token in `ASSISTANT_PROF_TOKEN`, read the `{"event":"ready","port":…}` line from its stdout, then call the authorised `/health` on that port. Cold start is measured until that first `/health` 200.
   - **Acceptance:** on Windows, the Tauri app starts the packaged backend and gets an authorised `/health`; report with the three numbers compared with the ARCHITECTURE §2 budgets.
 
 - [ ] **T-004 · Persistence layer** · S · Depends on: T-003
@@ -310,6 +311,7 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
 - [ ] **T-801 · Tauri shell and sidecar lifecycle** · L · Depends on: T-003, T-601, T-006 · ARCH §4
   - Builds on the T-006 skeleton: port + token handshake, health wait, crash restart once, graceful shutdown + process-tree kill, single instance, window state, native save dialog, CSP and minimal capabilities.
   - Tauri passes its app data directory to the backend at startup (CLI argument), so all user data lives under one folder; update ARCHITECTURE §4 and §7.9 accordingly (open point of ADR-036).
+  - **Note (ADR-038):** the port handshake is the backend's stdout ready line (`--port 0`, read `{"event":"ready","port":…,"version":…}` with a timeout; the version can be checked against the app's); the backend already accepts `--data-dir` for the item above. Keep reading (or draining) the child's stdout and stderr so the pipes never fill up.
   - **Acceptance:** manual + scripted tests on Windows: kill backend → restarts; close window → no orphan process.
 
 - [ ] **T-802 · Backend packaging (PyInstaller onedir)** · M · Depends on: T-801

@@ -41,6 +41,8 @@ just dev     # open the desktop app in dev mode with hot reload
 ```
 
 The first `just check` and `just dev` compile Tauri and take a few minutes; later runs are incremental.
+`just backend` starts the Python backend alone: it prints a session token and a ready line with its port;
+send the token in the `X-Session-Token` header (for example `curl -H "X-Session-Token: <token>" http://127.0.0.1:<port>/health`).
 Run `just` alone to list every command.
 
 ## Layout

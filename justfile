@@ -16,9 +16,13 @@ setup:
     cargo fetch --manifest-path {{ tauri_manifest }} --locked
     uvx pre-commit@4.7.0 install
 
-# Backend + frontend + Tauri in dev mode (the backend joins in T-003/T-801)
+# Backend + frontend + Tauri in dev mode (the backend joins in T-006/T-801)
 dev:
     pnpm --dir desktop tauri dev
+
+# Backend alone in dev mode: fresh random token printed once, OS-assigned port in the ready line
+backend *args:
+    uv run --directory backend --locked python scripts/dev_backend.py {{ args }}
 
 # All linters, type checks and tests (must pass before commit)
 check: check-backend check-frontend check-desktop

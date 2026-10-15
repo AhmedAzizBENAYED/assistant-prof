@@ -53,6 +53,7 @@ If the ticket is unclear, contradicts the architecture, or is bigger than expect
 |---|---|
 | `just setup` | install all toolchains' dependencies |
 | `just dev` | backend + frontend + Tauri in dev mode |
+| `just backend` | backend alone in dev mode: fresh random session token printed once, OS-assigned port shown in the ready line |
 | `just check` | all linters, type checks and tests (must pass before commit) |
 | `just test-backend` / `just test-frontend` / `just e2e` | test suites |
 | `just gen-api` | regenerate the TypeScript API client from OpenAPI |
