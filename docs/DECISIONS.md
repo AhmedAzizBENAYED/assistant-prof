@@ -216,7 +216,7 @@ Accepted · 2026-10-15
 Accepted · 2026-10-15
 - **Context:** the repository is public, so GitHub Actions minutes are free; it may become private later, where Windows minutes count double against the free quota. CI should be fast and frugal either way.
 - **Decision:**
-  - **development workflow:** a single developer commits directly to `main`; no feature branches, no pull requests of their own. The only PRs are Dependabot's: CI runs on them and the developer merges them once CI is green. Every ticket's commits are pushed to `main` and the CI run is checked; a red run is fixed before any other work starts (CLAUDE.md, step 6). Branch protection only blocks force pushes and deletion of `main`; it does not require status checks, which would block direct pushes;
+  - **development workflow:** a single developer commits directly to `main`; no feature branches, no pull requests of their own. The only PRs are Dependabot's: CI runs on them and the developer merges them once CI is green. The assistant commits but never pushes; the developer pushes manually and checks the CI run, and a reported red run is fixed before any other work starts (CLAUDE.md, step 6). No GitHub repository settings are relied on (no rulesets, branch protection or security features); CI and Dependabot are configured only by files in the repository;
   - one workflow (`ci.yml`) triggered by `push` to `main`, `pull_request` targeting `main` (in practice Dependabot only), `workflow_dispatch` and a weekly schedule;
   - `concurrency` cancels superseded runs on the same ref (a quick follow-up push replaces the previous run);
   - a `changes` job (`dorny/paths-filter`: a push is diffed against the previous head of `main`, a PR against its base branch) enables the backend, frontend and desktop jobs only when their paths, the `justfile` or the workflow changed; scheduled and manual runs enable everything;
@@ -225,7 +225,7 @@ Accepted · 2026-10-15
   - a `ci-ok` job aggregates the results (skipped counts as passed): the single status to look at after a push;
   - `pip-audit`, `pnpm audit` and `cargo audit` (`just audit-*`) run in a non-blocking job when a lockfile changes and weekly; findings surface as a workflow warning. `cargo-audit` and `just` are installed as prebuilt binaries (`taiki-e/install-action`);
   - third-party actions are pinned to commit SHAs; `permissions: contents: read` by default; checkout does not persist credentials;
-  - Dependabot: monthly version updates for uv, npm, cargo and actions, minor and patch grouped per ecosystem, at most 3 open PRs each; security updates stay immediate;
+  - Dependabot: monthly version updates for uv, npm, cargo and actions, minor and patch grouped per ecosystem, at most 3 open PRs each (no Dependabot security updates, since they are a repository setting);
   - `actionlint` runs as a pre-commit hook (`actionlint-py`, ships the binary, no Go toolchain).
 - **Why:** direct pushes keep a solo workflow simple, and checking `ci-ok` after each push still catches breakage at once; a full warm run costs a few minutes, a docs-only commit about one; supply-chain risk from tag-moved actions is removed; Dependabot noise and the CI runs it triggers stay bounded.
 - **Cost:** audits are warnings, not gates, until the dependency set settles; tighten them later. Changes outside the filtered paths (e.g. `.pre-commit-config.yaml`) do not trigger the stack jobs.

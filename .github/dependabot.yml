@@ -1,5 +1,5 @@
 # Version updates: monthly, minor + patch grouped per ecosystem to limit PRs and CI runs (ADR-037).
-# Security updates are separate and immediate once enabled in the repository settings.
+# No repository settings are relied on, so only these scheduled version updates exist.
 version: 2
 updates:
   - package-ecosystem: uv
