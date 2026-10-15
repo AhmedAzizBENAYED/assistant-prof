@@ -4,6 +4,7 @@ from assistant_prof.core.errors import (
     ApiError,
     AssistantProfError,
     ConfigError,
+    DatabaseError,
     ErrorCode,
     HttpError,
     InternalError,
@@ -23,7 +24,12 @@ API_ERRORS: list[type[ApiError]] = [
 
 
 def test_codes_are_unique_across_the_hierarchy() -> None:
-    classes: list[type[AssistantProfError]] = [*API_ERRORS, HttpError, ConfigError]
+    classes: list[type[AssistantProfError]] = [
+        *API_ERRORS,
+        HttpError,
+        ConfigError,
+        DatabaseError,
+    ]
     codes = [cls.code for cls in classes]
     assert len(codes) == len(set(codes))
     assert set(codes) == set(ErrorCode)

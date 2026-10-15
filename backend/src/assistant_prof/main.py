@@ -8,6 +8,10 @@ Parent-death detection (ADR-038): with ``--exit-on-stdin-eof`` the backend shuts
 as on ``POST /shutdown``, when its stdin reaches end of file. The desktop shell keeps the write end
 of that pipe open, so the OS closes it whenever the shell dies, even when it is killed.
 
+Database (ADR-040): before serving, ``db/assistant.sqlite`` is migrated to the latest schema. If
+it cannot be opened or migrated, the backend writes one line to stderr and exits with code 3,
+without a ready line.
+
 Shutdown deadline (ADR-039): once a shutdown is requested (stdin EOF or ``POST /shutdown``), the
 process is force-exited with code 0 if the graceful shutdown has not completed within 5 s.
 """
@@ -28,13 +32,16 @@ import uvicorn
 
 from assistant_prof import __version__
 from assistant_prof.api.app import create_app
+from assistant_prof.core.clock import SystemClock
 from assistant_prof.core.config import Settings, load_settings
-from assistant_prof.core.errors import ConfigError
+from assistant_prof.core.errors import ConfigError, DatabaseError
 from assistant_prof.core.logging import configure_logging, reset_logging
 from assistant_prof.core.paths import DataPaths
+from assistant_prof.persistence.migrate import upgrade_to_head
 
 HOST = "127.0.0.1"
 EXIT_CONFIG_ERROR = 2
+EXIT_DATABASE_ERROR = 3  # the shell offers "Réinitialiser l'historique" (T-801, ADR-040)
 SHUTDOWN_DEADLINE_S = 5.0  # hard limit for a graceful shutdown once requested (ADR-039)
 _STDIN_CHUNK = 4096
 
@@ -232,6 +239,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         try:
             log.info("server.starting", version=__version__, data_dir=str(paths.root))
+            try:
+                upgrade_to_head(paths.database, paths.db_backups, SystemClock())
+            except DatabaseError as exc:
+                log.error("database.unavailable", error=str(exc))
+                sys.stderr.write(f"assistant_prof: {exc}\n")
+                return EXIT_DATABASE_ERROR
             serve(settings, handshake, _stdin_for(settings))
             log.info("server.stopped")
         finally:

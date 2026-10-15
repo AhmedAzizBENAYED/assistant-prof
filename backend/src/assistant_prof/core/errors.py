@@ -13,6 +13,7 @@ class ErrorCode(StrEnum):
     """Stable machine-readable codes; never rename a member once released."""
 
     CONFIG_INVALID = "config_invalid"
+    DATABASE_ERROR = "database_error"
     UNAUTHORIZED = "unauthorized"
     NOT_FOUND = "not_found"
     METHOD_NOT_ALLOWED = "method_not_allowed"
@@ -31,6 +32,12 @@ class ConfigError(AssistantProfError):
     """Invalid startup configuration (arguments, environment). The message is English."""
 
     code = ErrorCode.CONFIG_INVALID
+
+
+class DatabaseError(AssistantProfError):
+    """The application database cannot be opened or migrated. The message is English."""
+
+    code = ErrorCode.DATABASE_ERROR
 
 
 class ApiError(AssistantProfError):

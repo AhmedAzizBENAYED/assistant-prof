@@ -95,7 +95,7 @@ Text boxes, equations, SmartArt, charts and floating images are **never modified
 
 **Sidecar lifecycle**
 1. Tauri generates a 32-byte random session token.
-2. Tauri spawns the backend with `--port 0 --exit-on-stdin-eof` and the token in the `ASSISTANT_PROF_TOKEN` environment variable (never on the command line, which other processes can read). The backend's stdin is a pipe whose write end the shell keeps open for its whole life: if the shell dies for any reason (crash, Task Manager), the OS closes it and the backend shuts down gracefully on end of file, so it is never orphaned (ADR-039). Whatever triggers a shutdown (stdin end of file or `POST /shutdown`), the backend force-exits with code 0 if the graceful shutdown has not completed within 5 s. On Windows the backend runs with `CREATE_NO_WINDOW`. The backend refuses to start (exit code 2, English message on stderr) if the token is missing or shorter than 32 characters.
+2. Tauri spawns the backend with `--port 0 --exit-on-stdin-eof` and the token in the `ASSISTANT_PROF_TOKEN` environment variable (never on the command line, which other processes can read). The backend's stdin is a pipe whose write end the shell keeps open for its whole life: if the shell dies for any reason (crash, Task Manager), the OS closes it and the backend shuts down gracefully on end of file, so it is never orphaned (ADR-039). Whatever triggers a shutdown (stdin end of file or `POST /shutdown`), the backend force-exits with code 0 if the graceful shutdown has not completed within 5 s. On Windows the backend runs with `CREATE_NO_WINDOW`. The backend refuses to start (exit code 2, English message on stderr) if the token is missing or shorter than 32 characters. Before serving, it migrates `db/assistant.sqlite` to the latest schema; if the database cannot be opened or migrated it exits with code 3 (English message on stderr, no ready line), and the shell shows a French error screen offering "Réinitialiser l'historique" (ADR-040, T-801).
 3. The backend binds **127.0.0.1 only** on a port chosen by the OS and, once it is listening, writes exactly one JSON line to stdout: `{"event":"ready","port":<port>,"version":"<version>"}`. Nothing else is ever written to stdout (logs go to the log file, plus stderr in dev mode). Reading the port from the backend removes the race where Tauri picks a free port that another process takes before the backend binds it (ADR-038). The backend rejects any request without the token, including `/health`.
 4. Tauri waits for the ready line (timeout 20 s, then a French error screen with "Réessayer" and "Exporter le diagnostic"). `/health` remains available for liveness checks.
 5. The frontend gets `{port, token}` through a Tauri command, never from the URL.
@@ -134,7 +134,7 @@ assistant-prof/
 │  │  ├─ agent/         graph, nodes, state, fast path, prompts loader
 │  │  ├─ voice/         STT interface, Groq provider, optional local provider
 │  │  ├─ versions/      workspaces, history, undo/redo, export
-│  │  ├─ persistence/   SQLAlchemy models, repositories, Alembic migrations
+│  │  ├─ persistence/   SQLAlchemy models, repositories, Alembic migrations (applied at startup)
 │  │  └─ api/           FastAPI app factory, routers, auth, SSE, error handlers
 │  ├─ packaging/        PyInstaller spec and entry script (onedir, no UPX)
 │  ├─ scripts/          dev_backend.py (`just backend`), measure.py (`just measure`)
@@ -284,12 +284,14 @@ A proposal = operations + preview file + diff:
 │  ├─ versions\v001.docx … vNNN.docx
 │  └─ proposals\<proposal-id>.docx   (temporary, cleaned up)
 ├─ templates\<template-uuid>\ container.docx, profile.json, thumbnail.png
-├─ db\assistant.sqlite       app state (SQLAlchemy + Alembic)
+├─ db\assistant.sqlite       app state (SQLAlchemy + Alembic, WAL mode, ADR-040)
+├─ db\backups\               copies taken before each migration (3 kept)
 ├─ db\checkpoints.sqlite     agent checkpoints (WAL mode, ADR-028)
 └─ logs\
 ```
 - Import receives the file as an upload (ADR-032), writes `original.docx`, assigns IDs (§7.2) and runs the rules-only role classification (§8.4) on the first version.
 - History table: version id, parent id, instruction text, operations JSON, model used, timestamp.
+- **Database (`persistence/`, ADR-040):** tables `settings` (key → JSON value), `documents` (id, name, times, `head_version_id`) and `versions` (id, document, parent, number per document matching `vNNN.docx`, instruction, operations, model used, time). Every connection uses WAL, `synchronous=FULL`, foreign keys on and a 5 s busy timeout. `Database.session()` is the unit of work (commit on success, rollback on error); repositories take that session and a `Clock` and return frozen records. At startup the stored revision is read with `sqlite3`: at head, nothing else happens (Alembic and SQLAlchemy are not imported); otherwise an existing file is backed up to `db/backups/` (3 kept) and upgraded in one transaction with foreign keys off, then checked with `PRAGMA foreign_key_check`. New revisions: `uv run alembic revision --autogenerate --rev-id 000N` from `backend/`, then bump `HEAD_REVISION`.
 - Undo/redo moves the head pointer; nothing is deleted. Export copies the head version to a path chosen in the native save dialog; this is the only place where the backend receives a file path. Overwriting an existing file, including the teacher's original, requires an explicit `overwrite` flag that the UI sends only after a French confirmation.
 - Cleanup policy: keep all versions of the last 30 days, then the last 20 versions per document (configurable).
 

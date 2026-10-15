@@ -7,6 +7,7 @@ import platformdirs
 
 APP_DIR_NAME = "AssistantProf"
 LOG_FILE_NAME = "assistant-prof.log"
+DATABASE_FILE_NAME = "assistant.sqlite"
 
 
 def default_data_dir() -> Path:
@@ -40,6 +41,16 @@ class DataPaths:
     def db(self) -> Path:
         """Directory of the SQLite files."""
         return self.root / "db"
+
+    @property
+    def database(self) -> Path:
+        """Application database (SQLAlchemy + Alembic, ADR-028)."""
+        return self.db / DATABASE_FILE_NAME
+
+    @property
+    def db_backups(self) -> Path:
+        """Copies of the database taken before each migration (ADR-040)."""
+        return self.db / "backups"
 
     @property
     def workspaces(self) -> Path:

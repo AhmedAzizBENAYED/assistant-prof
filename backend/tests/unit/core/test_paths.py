@@ -35,3 +35,5 @@ def test_layout_and_ensure(tmp_path: Path) -> None:
         assert directory.is_dir()
         assert directory.parent == paths.root
     assert paths.log_file.parent == paths.logs
+    assert paths.database == paths.db / "assistant.sqlite"
+    assert paths.db_backups.parent == paths.db

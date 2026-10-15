@@ -51,7 +51,7 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
   - **Note (ADR-038):** use the ready-line handshake instead of picking a port and polling `/health`: spawn the backend with `--port 0` and the token in `ASSISTANT_PROF_TOKEN`, read the `{"event":"ready","port":…}` line from its stdout, then call the authorised `/health` on that port. Cold start is measured until that first `/health` 200.
   - **Acceptance:** on Windows, the Tauri app starts the packaged backend and gets an authorised `/health`; report with the three numbers compared with the ARCHITECTURE §2 budgets.
 
-- [ ] **T-004 · Persistence layer** · S · Depends on: T-003
+- [x] **T-004 · Persistence layer** · S · Depends on: T-003
   - SQLAlchemy 2 engine/session for `db/assistant.sqlite` in the data dir, Alembic configured (programmatic upgrade on startup), base tables: `settings`, `documents`, `versions`. Repository pattern.
   - **Acceptance:** startup migrates an empty DB; a migration test upgrades from zero to head; repositories unit-tested on a temp DB.
 
@@ -312,6 +312,7 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
   - Builds on the T-006 skeleton: port + token handshake, health wait, crash restart once, graceful shutdown + process-tree kill, single instance, window state, native save dialog, CSP and minimal capabilities.
   - Tauri passes its app data directory to the backend at startup (CLI argument), so all user data lives under one folder; update ARCHITECTURE §4 and §7.9 accordingly (open point of ADR-036).
   - **Note (ADR-038):** the port handshake is the backend's stdout ready line (`--port 0`, read `{"event":"ready","port":…,"version":…}` with a timeout; the version can be checked against the app's); the backend already accepts `--data-dir` for the item above. Keep reading (or draining) the child's stdout and stderr so the pipes never fill up.
+  - **Note (ADR-040):** exit code 3 means the database cannot be opened or migrated. The French error screen for it offers "Réinitialiser l'historique", which moves `assistant.sqlite` and its `-wal`/`-shm` files to `db/corrupt/<timestamp>/` without deleting anything, then restarts the backend.
   - **Acceptance:** manual + scripted tests on Windows: kill backend → restarts; close window → no orphan process.
 
 - [ ] **T-802 · Backend packaging (PyInstaller onedir)** · M · Depends on: T-801

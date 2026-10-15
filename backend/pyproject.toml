@@ -4,9 +4,11 @@ version = "0.1.0"
 description = "Backend sidecar of Assistant Prof: edits and creates Word documents for teachers."
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "alembic>=1.20.0",
     "fastapi>=0.143.2",
     "platformdirs>=4.13.0",
     "pydantic-settings>=2.16.0",
+    "sqlalchemy>=2.1.4",
     "structlog>=26.1.0",
     "uvicorn>=0.54.0",
 ]

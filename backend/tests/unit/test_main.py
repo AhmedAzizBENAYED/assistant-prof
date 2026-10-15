@@ -21,6 +21,7 @@ from assistant_prof.main import (
     serve,
     watch_stdin,
 )
+from assistant_prof.persistence.migrate import head_revision, read_revision
 
 
 def test_ready_line_format() -> None:
@@ -239,3 +240,36 @@ def test_completed_shutdown_cancels_the_deadline(
     assert not thread.is_alive()
     time.sleep(1.3)  # past the deadline
     assert forced == []
+
+
+def test_startup_migrates_an_empty_database(
+    monkeypatch: pytest.MonkeyPatch, token: str, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("ASSISTANT_PROF_TOKEN", token)
+    revisions: list[str | None] = []
+    database = tmp_path / "db" / "assistant.sqlite"
+
+    def fake_serve(settings: Settings, handshake: object, stdin: object | None) -> None:
+        revisions.append(read_revision(database))  # already migrated when serving starts
+
+    monkeypatch.setattr(main_module, "serve", fake_serve)
+    assert main(["--port", "0", "--data-dir", str(tmp_path)]) == 0
+    assert revisions == [head_revision()]
+
+
+def test_corrupt_database_exits_with_code_3_and_no_ready_line(
+    monkeypatch: pytest.MonkeyPatch,
+    token: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("ASSISTANT_PROF_TOKEN", token)
+    (tmp_path / "db").mkdir()
+    (tmp_path / "db" / "assistant.sqlite").write_bytes(b"junk" * 1000)
+    served: list[None] = []
+    monkeypatch.setattr(main_module, "serve", lambda *_: served.append(None))
+    assert main(["--port", "0", "--data-dir", str(tmp_path)]) == 3
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert "assistant.sqlite" in err
+    assert served == []
