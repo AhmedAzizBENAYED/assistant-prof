@@ -8,9 +8,12 @@ Measures, against the ARCHITECTURE §2 budgets:
 - idle memory once started: RSS and USS of each process and in total. Budgets are judged on USS
   because summed RSS counts memory shared between processes (WebView2) several times.
 
-Every run uses a fresh temporary data directory, so the real user data is never touched. After
-each whole-app run the shell is killed and the script checks that the backend exits by itself
-(parent-death detection through stdin, ADR-038). The report goes to ``docs/reports/``.
+Both are measured for two kinds of start (ADR-040): a **new database** (first launch, or the
+first start after an update: Alembic migrates), each run in a fresh temporary data directory;
+and a **database at head** (the everyday start, fast path), all runs in one temporary data
+directory seeded by an untimed start. The real user data is never touched. After each whole-app
+run the shell is killed and the script checks that the backend exits by itself (parent-death
+detection through stdin, ADR-038). The report goes to ``docs/reports/``.
 """
 
 import argparse
@@ -21,6 +24,7 @@ import os
 import platform
 import queue
 import secrets
+import sqlite3
 import statistics
 import subprocess
 import sys
@@ -29,7 +33,8 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -37,6 +42,9 @@ from typing import IO, Literal
 
 import psutil
 from pydantic import BaseModel, ValidationError
+
+from assistant_prof.core.paths import DataPaths
+from assistant_prof.persistence.migrate import HEAD_REVISION, read_revision
 
 MB = 1024 * 1024
 BACKEND_RSS_BUDGET_MB = 250  # ARCH §2, judged on USS
@@ -153,8 +161,26 @@ class Machine:
 
 
 @dataclass
+class BackendSamples:
+    """Per-run figures of the backend started alone."""
+
+    ready_s: list[float] = field(default_factory=list)
+    health_s: list[float] = field(default_factory=list)
+    memory: list[ProcessMemory] = field(default_factory=list)
+
+
+@dataclass
+class AppSamples:
+    """Per-run figures of the whole app."""
+
+    health_s: list[float] = field(default_factory=list)
+    shell_reported_s: list[float] = field(default_factory=list)
+    memory: list[list[ProcessMemory]] = field(default_factory=list)
+
+
+@dataclass
 class Report:
-    """Everything the markdown report shows."""
+    """Everything the markdown report shows, for both kinds of start (new database, at head)."""
 
     machine: Machine
     runs: int
@@ -162,12 +188,10 @@ class Report:
     backend_bundle_bytes: int
     backend_bundle_files: int
     shell_exe_bytes: int
-    backend_ready_s: list[float] = field(default_factory=list)
-    backend_health_s: list[float] = field(default_factory=list)
-    backend_memory: list[ProcessMemory] = field(default_factory=list)
-    app_health_s: list[float] = field(default_factory=list)
-    app_shell_reported_s: list[float] = field(default_factory=list)
-    app_memory: list[list[ProcessMemory]] = field(default_factory=list)
+    backend_new_db: BackendSamples = field(default_factory=BackendSamples)
+    backend_at_head: BackendSamples = field(default_factory=BackendSamples)
+    app_new_db: AppSamples = field(default_factory=AppSamples)
+    app_at_head: AppSamples = field(default_factory=AppSamples)
     orphan_checks: list[bool] = field(default_factory=list)
 
 
@@ -187,23 +211,62 @@ def _median_memory(samples: Sequence[MemoryTotal]) -> MemoryTotal:
     )
 
 
+def _start_row(label: str, seconds: float) -> str:
+    return (
+        f"| Cold start, whole app, {label} | {seconds:.2f} s | < {COLD_START_BUDGET_S:g} s "
+        f"| {verdict(seconds, COLD_START_BUDGET_S)} |"
+    )
+
+
+def _memory_row(label: str, memory: MemoryTotal, budget_mb: int) -> str:
+    return (
+        f"| Idle memory, {label} | {_mb(memory.uss)} MB | < {budget_mb} MB "
+        f"| {verdict(_mb_value(memory.uss), budget_mb)} |"
+    )
+
+
 def render_report(report: Report, today: date) -> str:
-    """Render the report as markdown."""
+    """Render the report as markdown; each figure is given for both kinds of start."""
     m = report.machine
-    backend_ready = summarise(report.backend_ready_s)
-    backend_health = summarise(report.backend_health_s)
-    app_health = summarise(report.app_health_s)
-    shell_reported = summarise(report.app_shell_reported_s)
-    backend_idle = _median_memory([total([p]) for p in report.backend_memory])
-    app_idle = _median_memory([total(run) for run in report.app_memory])
+    new_backend, head_backend = report.backend_new_db, report.backend_at_head
+    new_app, head_app = report.app_new_db, report.app_at_head
+    app_health = summarise(new_app.health_s)
+    head_app_health = summarise(head_app.health_s)
+    backend_idle = _median_memory([total([p]) for p in new_backend.memory])
+    head_backend_idle = _median_memory([total([p]) for p in head_backend.memory])
+    app_idle = _median_memory([total(run) for run in new_app.memory])
+    head_app_idle = _median_memory([total(run) for run in head_app.memory])
     bundle_total = report.backend_bundle_bytes + report.shell_exe_bytes
     orphans = sum(not ok for ok in report.orphan_checks)
-    last_run = report.app_memory[-1]
+    last_run = new_app.memory[-1]
+    timings = [
+        ("Backend alone: spawn → ready line", new_backend.ready_s, head_backend.ready_s),
+        (
+            "Backend alone: spawn → first authorised `/health` 200",
+            new_backend.health_s,
+            head_backend.health_s,
+        ),
+        (
+            "Whole app: launch → shell reports `/health` 200 (measured by this script)",
+            new_app.health_s,
+            head_app.health_s,
+        ),
+        (
+            "Whole app: same, as timed inside the shell",
+            new_app.shell_reported_s,
+            head_app.shell_reported_s,
+        ),
+    ]
+    memories = [
+        ("Backend alone (median of runs)", "1", backend_idle, head_backend_idle),
+        ("Whole app (median of runs)", "all", app_idle, head_app_idle),
+    ]
 
     lines = [
         f"# Walking-skeleton measurement, {today.isoformat()}",
         "",
-        "Generated by `just measure` (T-006, ADR-035, ADR-039). Budgets from ARCHITECTURE §2.",
+        "Generated by `just measure` (T-006, ADR-035, ADR-039, ADR-040). Budgets from "
+        "ARCHITECTURE §2.",
         "",
         "## Machine",
         "",
@@ -212,21 +275,25 @@ def render_report(report: Report, today: date) -> str:
         f"- OS: {m.os}",
         f"- Python (packaged backend): {m.python}",
         f"- Commit: `{m.commit}`",
-        f"- Runs: {report.runs}; idle wait before memory samples: {report.idle_seconds:g} s",
+        f"- Runs: {report.runs} per kind of start; idle wait before memory samples: "
+        f"{report.idle_seconds:g} s",
         "",
         "## Summary against the budgets",
         "",
+        "*New database*: first launch, or first start after an update (migrations run). "
+        "*Database at head*: the everyday start.",
+        "",
         "| Measure | Value | Budget | Verdict |",
         "|---|---|---|---|",
-        f"| Cold start, whole app, first run | {app_health.first:.2f} s "
-        f"| < {COLD_START_BUDGET_S:g} s | {verdict(app_health.first, COLD_START_BUDGET_S)} |",
-        f"| Cold start, whole app, median | {app_health.median:.2f} s "
-        f"| < {COLD_START_BUDGET_S:g} s | {verdict(app_health.median, COLD_START_BUDGET_S)} |",
-        f"| Idle memory, backend (USS, median) | {_mb(backend_idle.uss)} MB "
-        f"| < {BACKEND_RSS_BUDGET_MB} MB "
-        f"| {verdict(_mb_value(backend_idle.uss), BACKEND_RSS_BUDGET_MB)} |",
-        f"| Idle memory, whole app (USS, median) | {_mb(app_idle.uss)} MB "
-        f"| < {APP_RSS_BUDGET_MB} MB | {verdict(_mb_value(app_idle.uss), APP_RSS_BUDGET_MB)} |",
+        _start_row("first run, new database", app_health.first),
+        _start_row("median, new database", app_health.median),
+        _start_row("median, database at head", head_app_health.median),
+        _memory_row("backend (USS, median), new database", backend_idle, BACKEND_RSS_BUDGET_MB),
+        _memory_row(
+            "backend (USS, median), database at head", head_backend_idle, BACKEND_RSS_BUDGET_MB
+        ),
+        _memory_row("whole app (USS, median), new database", app_idle, APP_RSS_BUDGET_MB),
+        _memory_row("whole app (USS, median), database at head", head_app_idle, APP_RSS_BUDGET_MB),
         f"| Bundle: backend onedir + shell exe (uncompressed) | {_mb(bundle_total)} MB "
         f"| installer < {INSTALLER_BUDGET_MB} MB (T-803) "
         f"| {verdict(_mb_value(bundle_total), INSTALLER_BUDGET_MB)} |",
@@ -247,23 +314,25 @@ def render_report(report: Report, today: date) -> str:
         "",
         "## Cold start (seconds)",
         "",
-        "| Measure | First run | Median | Range |",
-        "|---|---|---|---|",
-        f"| Backend alone: spawn → ready line | {_s(backend_ready)} |",
-        f"| Backend alone: spawn → first authorised `/health` 200 | {_s(backend_health)} |",
-        f"| Whole app: launch → shell reports `/health` 200 (measured by this script) "
-        f"| {_s(app_health)} |",
-        f"| Whole app: same, as timed inside the shell | {_s(shell_reported)} |",
+        "| Measure | Database | First run | Median | Range |",
+        "|---|---|---|---|---|",
+        *(
+            f"| {label} | {kind} | {_s(summarise(values))} |"
+            for label, new_values, head_values in timings
+            for kind, values in (("new", new_values), ("at head", head_values))
+        ),
         "",
         "## Idle memory (MB)",
         "",
-        "| Process | Count | RSS | USS |",
-        "|---|---|---|---|",
-        f"| Backend alone (median of runs) | 1 | {_mb(backend_idle.rss)} "
-        f"| {_mb(backend_idle.uss)} |",
-        f"| Whole app (median of runs) | all | {_mb(app_idle.rss)} | {_mb(app_idle.uss)} |",
+        "| Process | Database | Count | RSS | USS |",
+        "|---|---|---|---|---|",
+        *(
+            f"| {label} | {kind} | {count} | {_mb(memory.rss)} | {_mb(memory.uss)} |"
+            for label, count, new_memory, head_memory in memories
+            for kind, memory in (("new", new_memory), ("at head", head_memory))
+        ),
         "",
-        "Whole-app breakdown, last run:",
+        "Whole-app breakdown, last run with a new database:",
         "",
         "| Process | Count | RSS | USS |",
         "|---|---|---|---|",
@@ -274,15 +343,18 @@ def render_report(report: Report, today: date) -> str:
         "",
         "## Method and caveats",
         "",
-        "- Each run starts from a fresh temporary data directory. The backend alone is started "
-        "as the shell starts it (`--port 0 --exit-on-stdin-eof`, token in "
-        "`ASSISTANT_PROF_TOKEN`); the whole app is the release shell exe, which spawns the "
-        "packaged backend itself. The whole-app runs come first, so the backend-alone runs are "
-        "always warm.",
+        "- New database: each run starts from a fresh temporary data directory, so the backend "
+        "creates and migrates the database (Alembic and SQLAlchemy are imported). Database at "
+        "head: all runs share one temporary data directory, seeded by an untimed start and "
+        "checked to be at the head revision, so the backend takes the fast path (ADR-040).",
+        "- The backend alone is started as the shell starts it (`--port 0 --exit-on-stdin-eof`, "
+        "token in `ASSISTANT_PROF_TOKEN`); the whole app is the release shell exe, which spawns "
+        "the packaged backend itself. The whole-app runs come first, so the backend-alone runs "
+        "are always warm.",
         '- "First run" is the closest this script gets to a cold start, but the OS file cache '
         "may already hold the files. A true cold start, after a reboot, is a manual check. "
         "Windows Defender also scans a new executable on its first launch, which inflates the "
-        "first run after each build.",
+        "first run after each build (it falls in the new-database series).",
         "- The cold-start budget is set for a 4-core 2015-era CPU; on a faster machine, compare "
         "with care. T-806 measures on low-end hardware.",
         "- Memory is sampled after the idle wait. Whole app = the shell process and all its "
@@ -366,10 +438,35 @@ def _clean_env(data_dir: Path) -> dict[str, str]:
     return env
 
 
-def measure_backend(exe: Path, idle_seconds: float, report: Report) -> None:
-    """One run of the packaged backend alone."""
+@contextmanager
+def _data_dir(shared: Path | None) -> Iterator[Path]:
+    """Yield ``shared`` (database at head) or a fresh temporary directory (new database)."""
+    if shared is not None:
+        yield shared
+        return
+    with tempfile.TemporaryDirectory(prefix="ap-measure-") as fresh:
+        yield Path(fresh)
+
+
+def check_at_head(data_dir: Path) -> None:
+    """Raise ``MeasureError`` unless the data directory's database is at the head revision."""
+    database = DataPaths(data_dir).database
+    try:
+        revision = read_revision(database)
+    except sqlite3.Error as exc:
+        raise MeasureError(f"cannot read {database}: {exc}") from exc
+    if revision != HEAD_REVISION:
+        raise MeasureError(
+            f"seeded database is at revision {revision!r}, expected {HEAD_REVISION!r}"
+        )
+
+
+def measure_backend(
+    exe: Path, idle_seconds: float, samples: BackendSamples, shared_dir: Path | None = None
+) -> None:
+    """One run of the packaged backend alone, in ``shared_dir`` or a fresh data directory."""
     token = secrets.token_hex(32)
-    with tempfile.TemporaryDirectory(prefix="ap-measure-") as data_dir:
+    with _data_dir(shared_dir) as data_dir:
         env = _clean_env(Path(data_dir))
         env["ASSISTANT_PROF_TOKEN"] = token
         started = time.perf_counter()
@@ -395,9 +492,9 @@ def measure_backend(exe: Path, idle_seconds: float, report: Report) -> None:
                 time.sleep(HEALTH_POLL_S)
             healthy_at = time.perf_counter()
             time.sleep(idle_seconds)
-            report.backend_memory.append(_memory(psutil.Process(process.pid)))
-            report.backend_ready_s.append(ready_at - started)
-            report.backend_health_s.append(healthy_at - started)
+            samples.memory.append(_memory(psutil.Process(process.pid)))
+            samples.ready_s.append(ready_at - started)
+            samples.health_s.append(healthy_at - started)
             process.stdin.close()
             try:
                 code = process.wait(timeout=EXIT_TIMEOUT_S)
@@ -414,9 +511,16 @@ def measure_backend(exe: Path, idle_seconds: float, report: Report) -> None:
                 process.wait()
 
 
-def measure_app(app_exe: Path, backend_exe: Path, idle_seconds: float, report: Report) -> None:
+def measure_app(
+    app_exe: Path,
+    backend_exe: Path,
+    idle_seconds: float,
+    report: Report,
+    shared_dir: Path | None = None,
+) -> None:
     """One run of the whole app: the shell spawns the backend and reports its health."""
-    with tempfile.TemporaryDirectory(prefix="ap-measure-") as data_dir:
+    samples = report.app_new_db if shared_dir is None else report.app_at_head
+    with _data_dir(shared_dir) as data_dir:
         env = _clean_env(Path(data_dir))
         env["ASSISTANT_PROF_BACKEND_EXE"] = str(backend_exe)
         started = time.perf_counter()
@@ -440,9 +544,9 @@ def measure_app(app_exe: Path, backend_exe: Path, idle_seconds: float, report: R
                 raise MeasureError(f"the shell could not start the backend: {event.error}")
             time.sleep(idle_seconds)
             tree = root.children(recursive=True)
-            report.app_memory.append(_tree_memory(root))
-            report.app_health_s.append(healthy_at - started)
-            report.app_shell_reported_s.append((event.elapsed_ms or 0) / 1000)
+            samples.memory.append(_tree_memory(root))
+            samples.health_s.append(healthy_at - started)
+            samples.shell_reported_s.append((event.elapsed_ms or 0) / 1000)
             backend = psutil.Process(event.backend_pid)
             shell.kill()  # like the Task Manager: no graceful shutdown from the shell
             shell.wait()
@@ -513,6 +617,16 @@ def machine() -> Machine:
     )
 
 
+@contextmanager
+def _seeded_dir(backend_exe: Path, progress: Callable[[str], None]) -> Iterator[Path]:
+    """Yield a temporary data directory whose database an untimed start brought to head."""
+    with tempfile.TemporaryDirectory(prefix="ap-measure-head-") as shared:
+        progress("seeding a database at head (untimed)")
+        measure_backend(backend_exe, 0, BackendSamples(), Path(shared))
+        check_at_head(Path(shared))
+        yield Path(shared)
+
+
 def run(
     args: argparse.Namespace,
     *,
@@ -537,11 +651,19 @@ def run(
     # Whole app first: its first run, the budgeted one, then includes the first launch of a
     # fresh build (antivirus scan, cold file cache) instead of the backend-alone runs.
     for index in range(1, args.runs + 1):
-        progress(f"whole app, run {index}/{args.runs}")
+        progress(f"whole app, new database, run {index}/{args.runs}")
         measure_app(app_exe, backend_exe, args.idle_seconds, report)
+    with _seeded_dir(backend_exe, progress) as shared:
+        for index in range(1, args.runs + 1):
+            progress(f"whole app, database at head, run {index}/{args.runs}")
+            measure_app(app_exe, backend_exe, args.idle_seconds, report, shared)
     for index in range(1, args.runs + 1):
-        progress(f"backend alone, run {index}/{args.runs}")
-        measure_backend(backend_exe, args.idle_seconds, report)
+        progress(f"backend alone, new database, run {index}/{args.runs}")
+        measure_backend(backend_exe, args.idle_seconds, report.backend_new_db)
+    with _seeded_dir(backend_exe, progress) as shared:
+        for index in range(1, args.runs + 1):
+            progress(f"backend alone, database at head, run {index}/{args.runs}")
+            measure_backend(backend_exe, args.idle_seconds, report.backend_at_head, shared)
 
     out_dir: Path = args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)

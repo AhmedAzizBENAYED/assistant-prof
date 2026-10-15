@@ -1,10 +1,14 @@
 import importlib.util
+import sqlite3
 import sys
+from contextlib import closing
 from datetime import date
 from pathlib import Path
 from types import ModuleType
 
 import pytest
+
+from assistant_prof.persistence.migrate import HEAD_REVISION
 
 SCRIPT = Path(__file__).parents[2] / "scripts" / "measure.py"
 MB = 1024 * 1024
@@ -100,6 +104,8 @@ def _report() -> object:
         measure.ProcessMemory("msedgewebview2.exe", 300 * MB, 200 * MB),
         backend,
     ]
+    head_backend = measure.ProcessMemory("assistant-prof-backend.exe", 50 * MB, 30 * MB)
+    head_app_run = [*app_run[:2], head_backend]
     return measure.Report(
         machine=machine,
         runs=2,
@@ -107,36 +113,88 @@ def _report() -> object:
         backend_bundle_bytes=37 * MB,
         backend_bundle_files=300,
         shell_exe_bytes=10 * MB,
-        backend_ready_s=[1.2, 0.6],
-        backend_health_s=[1.3, 0.7],
-        backend_memory=[backend, backend],
-        app_health_s=[2.5, 1.5],
-        app_shell_reported_s=[2.4, 1.4],
-        app_memory=[app_run, app_run],
-        orphan_checks=[True, True],
+        backend_new_db=measure.BackendSamples([1.2, 0.6], [1.3, 0.7], [backend, backend]),
+        backend_at_head=measure.BackendSamples(
+            [0.5, 0.4], [0.55, 0.45], [head_backend, head_backend]
+        ),
+        app_new_db=measure.AppSamples([2.5, 1.5], [2.4, 1.4], [app_run, app_run]),
+        app_at_head=measure.AppSamples([1.1, 0.9], [1.0, 0.8], [head_app_run, head_app_run]),
+        orphan_checks=[True, True, True, True],
     )
 
 
 def test_render_report_judges_budgets_on_uss() -> None:
     text = measure.render_report(_report(), date(2026, 10, 15))
     assert text.startswith("# Walking-skeleton measurement, 2026-10-15")
-    assert "| Cold start, whole app, first run | 2.50 s | < 6 s | pass |" in text
-    assert "| Idle memory, backend (USS, median) | 40.0 MB | < 250 MB | pass |" in text
+    assert "| Cold start, whole app, first run, new database | 2.50 s | < 6 s | pass |" in text
+    assert "| Idle memory, backend (USS, median), new database | 40.0 MB | < 250 MB | pass |" in (
+        text
+    )
     # USS total 250 MB passes although summed RSS (390 MB) would be the larger figure.
-    assert "| Idle memory, whole app (USS, median) | 250.0 MB | < 450 MB | pass |" in text
+    assert (
+        "| Idle memory, whole app (USS, median), new database | 250.0 MB | < 450 MB | pass |"
+        in text
+    )
     assert "| msedgewebview2.exe | 1 | 300.0 | 200.0 |" in text
-    assert "0 orphan(s) in 2 runs | 0 | pass |" in text
+    assert "0 orphan(s) in 4 runs | 0 | pass |" in text
     assert "manual check" in text
     assert "Windows Defender" in text
 
 
+def test_render_report_puts_database_at_head_next_to_new_database() -> None:
+    text = measure.render_report(_report(), date(2026, 10, 15))
+    assert "| Cold start, whole app, median, database at head | 1.00 s | < 6 s | pass |" in text
+    assert (
+        "| Idle memory, backend (USS, median), database at head | 30.0 MB | < 250 MB | pass |"
+        in text
+    )
+    assert (
+        "| Idle memory, whole app (USS, median), database at head | 240.0 MB | < 450 MB | pass |"
+        in text
+    )
+    ready_new = "| Backend alone: spawn → ready line | new | 1.20 | 0.90 | 0.60 to 1.20 |"
+    ready_head = "| Backend alone: spawn → ready line | at head | 0.50 | 0.45 | 0.40 to 0.50 |"
+    assert f"{ready_new}\n{ready_head}" in text  # adjacent rows
+    assert "| Backend alone (median of runs) | at head | 1 | 50.0 | 30.0 |" in text
+
+
 def test_render_report_flags_failures() -> None:
     report = _report()
-    report.app_health_s = [7.0, 6.5]  # type: ignore[attr-defined]
-    report.orphan_checks = [True, False]  # type: ignore[attr-defined]
+    report.app_new_db.health_s = [7.0, 6.5]  # type: ignore[attr-defined]
+    report.app_at_head.health_s = [6.5, 6.1]  # type: ignore[attr-defined]
+    report.orphan_checks = [True, False, True, True]  # type: ignore[attr-defined]
     text = measure.render_report(report, date(2026, 10, 15))
-    assert "| Cold start, whole app, median | 6.75 s | < 6 s | FAIL |" in text
-    assert "1 orphan(s) in 2 runs | 0 | FAIL |" in text
+    assert "| Cold start, whole app, median, new database | 6.75 s | < 6 s | FAIL |" in text
+    assert "| Cold start, whole app, median, database at head | 6.30 s | < 6 s | FAIL |" in text
+    assert "1 orphan(s) in 4 runs | 0 | FAIL |" in text
+
+
+def test_check_at_head(tmp_path: Path) -> None:
+    with pytest.raises(measure.MeasureError, match="revision None"):
+        measure.check_at_head(tmp_path)  # no database at all
+    database = tmp_path / "db" / "assistant.sqlite"
+    database.parent.mkdir()
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("CREATE TABLE alembic_version (version_num TEXT)")
+        connection.execute("INSERT INTO alembic_version VALUES ('0000')")
+    with pytest.raises(measure.MeasureError, match="'0000', expected"):
+        measure.check_at_head(tmp_path)
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("UPDATE alembic_version SET version_num = ?", (HEAD_REVISION,))
+    measure.check_at_head(tmp_path)  # does not raise
+    database.write_bytes(b"junk" * 1000)
+    with pytest.raises(measure.MeasureError, match="cannot read"):
+        measure.check_at_head(tmp_path)
+
+
+def test_data_dir_is_shared_or_fresh(tmp_path: Path) -> None:
+    with measure._data_dir(tmp_path) as shared:
+        assert shared == tmp_path
+    assert tmp_path.is_dir()  # a shared directory is never removed
+    with measure._data_dir(None) as fresh:
+        assert fresh.is_dir()
+        assert fresh != tmp_path
+    assert not fresh.exists()
 
 
 def test_main_reports_missing_executables(
