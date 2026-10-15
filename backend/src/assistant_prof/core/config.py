@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     port: int = Field(default=0, ge=0, le=65535, description="0 lets the OS pick a free port")
     data_dir: Path | None = None
     dev: bool = False
+    exit_on_stdin_eof: bool = False
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     cors_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     dev_origin: str = DEFAULT_DEV_ORIGIN

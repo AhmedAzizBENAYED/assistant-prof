@@ -3,15 +3,20 @@
 Startup handshake (ARCH §4): once the server is listening, exactly one JSON line is written to
 stdout, ``{"event":"ready","port":<port>,"version":"<version>"}``. Nothing else is ever written to
 stdout: logs go to the log file (and stderr in dev mode), and stray prints are sent to stderr.
+
+Parent-death detection (ADR-038): with ``--exit-on-stdin-eof`` the backend shuts down gracefully,
+as on ``POST /shutdown``, when its stdin reaches end of file. The desktop shell keeps the write end
+of that pipe open, so the OS closes it whenever the shell dies, even when it is killed.
 """
 
 import argparse
 import json
 import sys
+import threading
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TextIO
+from typing import BinaryIO, TextIO
 
 import structlog
 import uvicorn
@@ -25,6 +30,7 @@ from assistant_prof.core.paths import DataPaths
 
 HOST = "127.0.0.1"
 EXIT_CONFIG_ERROR = 2
+_STDIN_CHUNK = 4096
 
 log = structlog.get_logger(__name__)
 
@@ -40,6 +46,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--data-dir", type=Path, help="data directory (default: per-user dir)")
     parser.add_argument("--dev", action="store_true", help="dev mode (refused in packaged builds)")
+    parser.add_argument(
+        "--exit-on-stdin-eof",
+        action="store_true",
+        help="shut down when stdin is closed (the desktop shell's parent-death signal)",
+    )
     return parser
 
 
@@ -69,6 +80,23 @@ class _Server(uvicorn.Server):
             self._on_ready(port)
 
 
+def watch_stdin(stream: BinaryIO, on_eof: Callable[[], None]) -> threading.Thread:
+    """Start a daemon thread that discards ``stream`` and calls ``on_eof`` at end of file."""
+
+    def run() -> None:
+        try:
+            while stream.read(_STDIN_CHUNK):
+                pass
+        except (OSError, ValueError):  # broken or closed pipe: the parent is gone as well
+            pass
+        log.info("shutdown.stdin_eof")
+        on_eof()
+
+    thread = threading.Thread(target=run, name="stdin-watch", daemon=True)
+    thread.start()
+    return thread
+
+
 @contextmanager
 def _stdout_reserved() -> Iterator[TextIO | None]:
     """Yield the real stdout and redirect ``sys.stdout`` to stderr until exit."""
@@ -80,8 +108,11 @@ def _stdout_reserved() -> Iterator[TextIO | None]:
         sys.stdout = real_stdout
 
 
-def serve(settings: Settings, handshake: TextIO | None) -> None:
-    """Run uvicorn until shutdown; write the ready line to ``handshake``."""
+def serve(settings: Settings, handshake: TextIO | None, stdin: BinaryIO | None = None) -> None:
+    """Run uvicorn until shutdown; write the ready line to ``handshake``.
+
+    If ``stdin`` is given, its end of file triggers the same graceful shutdown as ``/shutdown``.
+    """
 
     def announce(port: int) -> None:
         log.info("server.ready", port=port, version=__version__, dev=settings.dev)
@@ -106,7 +137,19 @@ def serve(settings: Settings, handshake: TextIO | None) -> None:
         server.should_exit = True
 
     config.app = create_app(settings, request_shutdown=request_shutdown)
+    if stdin is not None:
+        watch_stdin(stdin, request_shutdown)
     server.run()
+
+
+def _stdin_for(settings: Settings) -> BinaryIO | None:
+    """Return the stream to watch for parent death, if enabled and available."""
+    if not settings.exit_on_stdin_eof:
+        return None
+    if sys.stdin is None:  # no stdin at all (e.g. pythonw): there is no parent pipe to watch
+        log.warning("stdin_watch.unavailable")
+        return None
+    return sys.stdin.buffer
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -117,6 +160,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         overrides["data_dir"] = args.data_dir
     if args.dev:
         overrides["dev"] = True
+    if args.exit_on_stdin_eof:
+        overrides["exit_on_stdin_eof"] = True
 
     with _stdout_reserved() as handshake:
         try:
@@ -135,7 +180,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         try:
             log.info("server.starting", version=__version__, data_dir=str(paths.root))
-            serve(settings, handshake)
+            serve(settings, handshake, _stdin_for(settings))
             log.info("server.stopped")
         finally:
             reset_logging()
