@@ -95,15 +95,15 @@ Text boxes, equations, SmartArt, charts and floating images are **never modified
 
 **Sidecar lifecycle**
 1. Tauri generates a 32-byte random session token.
-2. Tauri spawns the backend with `--port 0` and the token in the `ASSISTANT_PROF_TOKEN` environment variable (never on the command line, which other processes can read). The backend refuses to start (exit code 2, English message on stderr) if the token is missing or shorter than 32 characters.
+2. Tauri spawns the backend with `--port 0 --exit-on-stdin-eof` and the token in the `ASSISTANT_PROF_TOKEN` environment variable (never on the command line, which other processes can read). The backend's stdin is a pipe whose write end the shell keeps open for its whole life: if the shell dies for any reason (crash, Task Manager), the OS closes it and the backend shuts down gracefully on end of file, so it is never orphaned (ADR-039). On Windows the backend runs with `CREATE_NO_WINDOW`. The backend refuses to start (exit code 2, English message on stderr) if the token is missing or shorter than 32 characters.
 3. The backend binds **127.0.0.1 only** on a port chosen by the OS and, once it is listening, writes exactly one JSON line to stdout: `{"event":"ready","port":<port>,"version":"<version>"}`. Nothing else is ever written to stdout (logs go to the log file, plus stderr in dev mode). Reading the port from the backend removes the race where Tauri picks a free port that another process takes before the backend binds it (ADR-038). The backend rejects any request without the token, including `/health`.
 4. Tauri waits for the ready line (timeout 20 s, then a French error screen with "Réessayer" and "Exporter le diagnostic"). `/health` remains available for liveness checks.
 5. The frontend gets `{port, token}` through a Tauri command, never from the URL.
-6. On window close, Tauri asks the backend to shut down gracefully (`POST /shutdown`), then kills the process tree after 3 s.
+6. On window close, Tauri asks the backend to shut down gracefully (`POST /shutdown`), closes its stdin, then kills the process tree after 3 s.
 7. Single-instance plugin: a second launch focuses the existing window.
 8. If the backend crashes, Tauri restarts it once and shows a non-blocking notice; the second crash shows the error screen.
 
-**Backend command line** (`python -m assistant_prof`, ADR-038): `--port N` (required; `0` = OS-assigned), `--data-dir PATH` (default: the per-user data directory, §7.9), `--dev` (adds the Vite dev origin to CORS, copies logs to stderr, serves `/docs`; refused in packaged builds). Other settings come from `ASSISTANT_PROF_*` environment variables (`TOKEN`, `LOG_LEVEL`, `CORS_ORIGINS`); command-line values win over the environment. `just backend` runs the backend alone in dev mode with a fresh random token printed once and its data in `backend/build/dev-data`.
+**Backend command line** (`python -m assistant_prof`, ADR-038): `--port N` (required; `0` = OS-assigned), `--data-dir PATH` (default: the per-user data directory, §7.9), `--dev` (adds the Vite dev origin to CORS, copies logs to stderr, serves `/docs`; refused in packaged builds), `--exit-on-stdin-eof` (shut down gracefully when stdin reaches end of file; always passed by the shell, off by default so hand runs are unaffected). Other settings come from `ASSISTANT_PROF_*` environment variables (`TOKEN`, `LOG_LEVEL`, `CORS_ORIGINS`); command-line values win over the environment. `just backend` runs the backend alone in dev mode with a fresh random token printed once and its data in `backend/build/dev-data`.
 
 ---
 
@@ -120,6 +120,7 @@ assistant-prof/
 ├─ docs/
 │  ├─ ARCHITECTURE.md  DECISIONS.md  TICKETS.md
 │  ├─ PROVIDERS.md               current free models and limits (dated)
+│  ├─ reports/                   `just measure` reports; flaky/ keeps failing test output
 │  └─ user-guide-fr.md
 ├─ backend/
 │  ├─ pyproject.toml  uv.lock
@@ -135,6 +136,8 @@ assistant-prof/
 │  │  ├─ versions/      workspaces, history, undo/redo, export
 │  │  ├─ persistence/   SQLAlchemy models, repositories, Alembic migrations
 │  │  └─ api/           FastAPI app factory, routers, auth, SSE, error handlers
+│  ├─ packaging/        PyInstaller spec and entry script (onedir, no UPX)
+│  ├─ scripts/          dev_backend.py (`just backend`), measure.py (`just measure`)
 │  ├─ prompts/          French prompt files (*.md) with few-shot examples
 │  ├─ config/           models.default.yaml, rules.fr.yaml
 │  └─ tests/            unit/, integration/, golden/, eval/, fixtures/
@@ -564,6 +567,8 @@ Structured JSON logs (rotating, 5 × 5 MB), correlation ID per instruction acros
 
 ## 16. Packaging and release
 - **Walking skeleton first** (T-006, ADR-035): right after the backend core, a `/health`-only backend is packaged with PyInstaller onedir and started from Tauri; bundle size, cold start and idle RSS are recorded against §2 budgets. The measurement is repeated after LangGraph is added (gate in ADR-029).
+- **Measurement** (`just measure`, ADR-039): builds the backend (`just build-backend`) and the release shell (`tauri build --no-bundle`), then runs the whole app and the backend alone 5 times each from fresh temporary data directories. Cold start ends at the first authorised `/health` 200 (first run and median); idle memory is sampled after 10 s as RSS and USS per process, and the §2 memory budgets are judged on USS (summed RSS double-counts pages shared between WebView2 processes). Each whole-app run also kills the shell and checks the backend exits by itself. Reports: `docs/reports/<date>-<name>.md`. First result (2026-10-15, i7-13650HX): whole app 2.37 s first run, 0.82 s median; idle USS backend 42 MB, whole app 128 MB; backend onedir 36 MB + shell 8.5 MB; all within budget.
+- Until T-803, the shell finds the backend through `ASSISTANT_PROF_BACKEND_EXE` or, by default, `backend/dist/assistant-prof-backend/` in the repository.
 - Backend: PyInstaller **onedir**, no UPX (fewer antivirus false positives), shipped as a Tauri resource and spawned by the Rust shell.
 - Installer: Tauri NSIS bundle, per-user install (no admin), WebView2 bootstrapper, French installer language.
 - **No code signing (0 $):** Windows SmartScreen shows "Windows a protégé votre ordinateur". The French user guide explains "Informations complémentaires → Exécuter quand même". If antivirus false positives appear, submit the build to Microsoft's false-positive portal.

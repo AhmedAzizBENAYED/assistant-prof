@@ -41,3 +41,5 @@ backend/dist/
 .env
 .env.*
 *.log
+# Flaky-test output is kept for diagnosis (CLAUDE.md, step 4).
+!docs/reports/flaky/*.log

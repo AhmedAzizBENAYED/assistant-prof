@@ -1,5 +1,7 @@
 # Fast checks only; mypy and the test suites run in `just check`.
 # Installed by `just setup` (pre-commit runs through uvx, no project dependency).
+# Flaky-test logs are raw diagnostic output (CLAUDE.md, step 4): keep them byte for byte.
+exclude: ^docs/reports/flaky/
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

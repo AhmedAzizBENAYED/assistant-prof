@@ -1,0 +1,371 @@
+uv run --directory backend --locked --group packaging pyinstaller packaging/assistant-prof-backend.spec --noconfirm --clean --distpath dist --workpath build/pyinstaller
+206 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.8
+207 INFO: Python: 3.12.15
+247 INFO: Platform: Windows-11-10.0.26300-SP0
+247 INFO: Python environment: C:\Users\user\Documents\assistant-prof\backend\.venv
+251 INFO: Removing temporary files and cleaning cache in C:\Users\user\AppData\Local\pyinstaller
+259 INFO: Module search paths (PYTHONPATH):
+['C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Scripts\\pyinstaller.exe',
+ 'C:\\Users\\user\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\python312.zip',
+ 'C:\\Users\\user\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\DLLs',
+ 'C:\\Users\\user\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib',
+ 'C:\\Users\\user\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none',
+ 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv',
+ 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages',
+ 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\src',
+ 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\packaging',
+ 'C:\\Users\\user\\Documents\\assistant-prof\\src']
+711 INFO: checking Analysis
+711 INFO: Building Analysis because Analysis-00.toc is non existent
+711 INFO: Looking for Python shared library...
+711 INFO: Using Python shared library: C:\Users\user\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\python312.dll
+711 INFO: Running Analysis Analysis-00.toc
+711 INFO: Target bytecode optimization level: 0
+711 INFO: Initializing module dependency graph...
+713 INFO: Initializing module graph hook caches...
+725 INFO: Analyzing modules for base_library.zip ...
+2241 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+3254 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+5675 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+7943 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+8987 INFO: Caching module dependency graph...
+9096 INFO: Analyzing C:\Users\user\Documents\assistant-prof\backend\packaging\entry.py
+9226 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+9231 INFO: SetuptoolsInfo: initializing cached setuptools info...
+10642 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+11055 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+11523 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+13679 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+14043 INFO: Processing standard module hook 'hook-uvicorn.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+16356 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+16718 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+17733 INFO: Processing standard module hook 'hook-anyio.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+19397 INFO: Processing standard module hook 'hook-pydantic.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+21165 INFO: Processing standard module hook 'hook-zoneinfo.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+21231 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+24030 INFO: Processing standard module hook 'hook-opentelemetry.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+24878 INFO: Processing pre-safe-import-module hook 'hook-platformdirs.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24891 INFO: Processing standard module hook 'hook-platformdirs.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+24953 INFO: Analyzing hidden import 'uvicorn.loops.asyncio'
+24955 INFO: Analyzing hidden import 'uvicorn.lifespan.on'
+24961 INFO: Processing module hooks (post-graph stage)...
+25053 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+25989 INFO: Processing standard module hook 'hook-psutil.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+32123 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+32125 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+32142 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+32172 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+32225 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+32227 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+32248 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+32251 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+32531 INFO: Processing standard module hook 'hook-_osx_support.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+33050 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+33055 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+33072 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+33073 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+35120 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+35123 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+35418 WARNING: Hidden import "tzdata" not found!
+35642 INFO: Performing binary vs. data reclassification (9 entries)
+35648 INFO: Looking for ctypes DLLs
+35728 INFO: Analyzing run-time hooks ...
+35738 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+35744 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+35749 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+35754 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\Users\\user\\Documents\\assistant-prof\\backend\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+35784 INFO: Creating base_library.zip...
+35887 INFO: Looking for dynamic libraries
+37217 INFO: Extra DLL search directories (AddDllDirectory): []
+37217 INFO: Extra DLL search directories (PATH): []
+39603 INFO: Warnings written to C:\Users\user\Documents\assistant-prof\backend\build\pyinstaller\assistant-prof-backend\warn-assistant-prof-backend.txt
+39855 INFO: Graph cross-reference written to C:\Users\user\Documents\assistant-prof\backend\build\pyinstaller\assistant-prof-backend\xref-assistant-prof-backend.html
+39939 INFO: checking PYZ
+39940 INFO: Building PYZ because PYZ-00.toc is non existent
+39940 INFO: Building PYZ (ZlibArchive) C:\Users\user\Documents\assistant-prof\backend\build\pyinstaller\assistant-prof-backend\PYZ-00.pyz
+41290 INFO: Building PYZ (ZlibArchive) C:\Users\user\Documents\assistant-prof\backend\build\pyinstaller\assistant-prof-backend\PYZ-00.pyz completed successfully.
+41330 INFO: checking PKG
+41330 INFO: Building PKG because PKG-00.toc is non existent
+41331 INFO: Building PKG (CArchive) assistant-prof-backend.pkg
+41403 INFO: Building PKG (CArchive) assistant-prof-backend.pkg completed successfully.
+41406 INFO: Bootloader C:\Users\user\Documents\assistant-prof\backend\.venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\run.exe
+41406 INFO: checking EXE
+41406 INFO: Building EXE because EXE-00.toc is non existent
+41406 INFO: Building EXE from EXE-00.toc
+41406 INFO: Copying bootloader EXE to C:\Users\user\Documents\assistant-prof\backend\build\pyinstaller\assistant-prof-backend\assistant-prof-backend.exe
+41610 INFO: Copying icon to EXE
+41751 INFO: Copying 0 resources to EXE
+41751 INFO: Embedding manifest in EXE
+41910 INFO: Appending PKG archive to EXE
+42149 INFO: Fixing EXE headers
+43034 INFO: Building EXE from EXE-00.toc completed successfully.
+43040 INFO: checking COLLECT
+43040 INFO: Building COLLECT because COLLECT-00.toc is non existent
+43041 INFO: Removing dir C:\Users\user\Documents\assistant-prof\backend\dist\assistant-prof-backend
+43141 INFO: Building COLLECT COLLECT-00.toc
+43826 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+43833 INFO: Build complete! The results are available in: C:\Users\user\Documents\assistant-prof\backend\dist
+pnpm --dir desktop tauri build --no-bundle
+$ tauri build --no-bundle
+        Info Looking up installed tauri packages to check mismatched versions...
+     Running beforeBuildCommand `pnpm --dir ../frontend build`
+$ tsc -b && vite build
+[36mvite v8.3.4 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 18 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.39 kB │ gzip:  0.26 kB
+dist/assets/index-eZVQwgBX.css    0.19 kB │ gzip:  0.17 kB
+dist/assets/index-DmEItH8a.js   219.83 kB │ gzip: 68.72 kB
+
+[32m✓ built in 723ms[39m
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+   Compiling siphasher v1.0.4
+   Compiling cfg-if v1.0.5
+   Compiling icu_properties_data v2.3.0
+   Compiling icu_normalizer_data v2.3.0
+   Compiling fastrand v2.5.0
+   Compiling windows-link v0.2.1
+   Compiling stable_deref_trait v1.2.1
+   Compiling zmij v1.0.23
+   Compiling thiserror v2.0.21
+   Compiling smallvec v1.16.3
+   Compiling parking_lot_core v0.9.12
+   Compiling serde v1.0.229
+   Compiling typeid v1.0.3
+   Compiling memchr v2.8.3
+   Compiling time-core v0.1.9
+   Compiling num-conv v0.2.2
+   Compiling ident_case v1.0.1
+   Compiling erased-serde v0.4.10
+   Compiling phf_shared v0.13.1
+   Compiling writeable v0.6.4
+   Compiling litemap v0.8.3
+   Compiling strsim v0.11.1
+   Compiling itoa v1.0.18
+   Compiling windows-sys v0.61.2
+   Compiling utf8_iter v1.0.4
+   Compiling getrandom v0.4.3
+   Compiling phf_generator v0.13.1
+   Compiling version_check v0.9.5
+   Compiling new_debug_unreachable v1.0.6
+   Compiling libc v0.2.190
+   Compiling anyhow v1.0.104
+   Compiling scopeguard v1.2.0
+   Compiling precomputed-hash v0.1.1
+   Compiling serde_json v1.0.154
+   Compiling phf_codegen v0.13.1
+   Compiling lock_api v0.4.14
+   Compiling winnow v1.0.4
+   Compiling autocfg v1.5.1
+   Compiling shlex v2.0.1
+   Compiling toml_writer v1.1.3+spec-1.1.0
+   Compiling find-msvc-tools v0.1.14
+   Compiling log v0.4.34
+   Compiling dtoa v1.0.11
+   Compiling percent-encoding v2.3.2
+   Compiling parking_lot v0.12.5
+   Compiling selectors v0.38.0
+   Compiling dtoa-short v0.3.5
+   Compiling tendril v0.5.1
+   Compiling aho-corasick v1.1.5
+   Compiling toml_parser v1.1.5+spec-1.1.0
+   Compiling windows-result v0.4.1
+   Compiling indexmap v1.9.3
+   Compiling form_urlencoded v1.2.2
+   Compiling windows-strings v0.5.1
+   Compiling bitflags v2.13.2
+   Compiling camino v1.2.6
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling string_cache_codegen v0.6.1
+   Compiling string_cache v0.9.0
+   Compiling cc v1.8.0
+   Compiling regex-syntax v0.8.11
+   Compiling alloc-no-stdlib v3.0.0
+   Compiling web_atoms v0.2.6
+   Compiling alloc-stdlib v0.3.0
+   Compiling servo_arc v0.4.3
+   Compiling rustc-hash v2.1.3
+   Compiling deranged v0.5.9
+   Compiling equivalent v1.0.3
+   Compiling hashbrown v0.17.1
+   Compiling powerfmt v0.2.1
+   Compiling hashbrown v0.12.3
+   Compiling web-time v1.1.0
+   Compiling fnv v1.0.7
+   Compiling bit-vec v0.8.0
+   Compiling schemars v0.8.22
+   Compiling brotli-decompressor v6.0.1
+   Compiling bit-set v0.8.0
+   Compiling quick-xml v0.42.0
+   Compiling foldhash v0.2.0
+   Compiling simd-adler32 v0.3.10
+   Compiling semver v1.0.28
+   Compiling toml_datetime v1.1.2+spec-1.1.0
+   Compiling serde_spanned v1.1.2
+   Compiling uuid v1.28.0
+   Compiling time v0.3.55
+   Compiling indexmap v2.14.2
+   Compiling toml v1.1.8+spec-1.1.0
+   Compiling tauri-utils v2.10.2
+   Compiling cfb v0.14.0
+   Compiling dunce v1.0.5
+   Compiling bytes v1.12.1
+   Compiling vswhom-sys v0.1.3
+   Compiling dyn-clone v1.0.20
+   Compiling base64 v0.23.1
+   Compiling serde-untagged v0.1.9
+   Compiling brotli v9.0.0
+   Compiling infer v0.22.0
+   Compiling generic-array v0.14.7
+   Compiling windows-threading v0.2.1
+   Compiling crc32fast v1.5.2
+   Compiling glob v0.3.4
+   Compiling ctor v1.0.13
+   Compiling adler2 v2.0.1
+   Compiling http v1.5.0
+   Compiling rustc_version v0.4.1
+   Compiling time-macros v0.2.32
+   Compiling typenum v1.20.1
+   Compiling option-ext v0.2.0
+   Compiling miniz_oxide v0.9.1
+   Compiling heck v0.5.0
+   Compiling regex-automata v0.4.18
+   Compiling vswhom v0.1.0
+   Compiling raw-window-handle v0.6.2
+   Compiling crossbeam-utils v0.8.23
+   Compiling flate2 v1.1.10
+   Compiling miniz_oxide v0.8.9
+   Compiling fdeflate v0.3.7
+   Compiling cookie v0.18.2
+   Compiling static_vcruntime v3.0.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling winapi-util v0.1.11
+   Compiling same-file v1.0.6
+   Compiling windows-version v0.1.7
+   Compiling pin-project-lite v0.2.17
+   Compiling bitflags v1.3.2
+   Compiling winreg v0.56.0
+   Compiling dirs-sys v0.5.0
+   Compiling walkdir v2.5.0
+   Compiling dirs v7.0.0
+   Compiling embed-resource v3.0.12
+   Compiling tauri-winres v0.3.6
+   Compiling png v0.17.16
+   Compiling serde_derive_internals v0.29.1
+   Compiling crossbeam-channel v0.5.17
+   Compiling regex v1.13.1
+   Compiling synstructure v0.14.0
+   Compiling darling_core v0.24.1
+   Compiling digest v0.10.7
+   Compiling once_cell v1.21.4
+   Compiling tracing-core v0.1.36
+   Compiling tauri-runtime v2.12.2
+   Compiling cpufeatures v0.2.17
+   Compiling wry v0.57.0
+   Compiling byteorder v1.5.0
+   Compiling ico v0.5.0
+   Compiling tracing v0.1.44
+   Compiling sha2 v0.10.9
+   Compiling png v0.18.1
+   Compiling muda v0.20.0
+   Compiling getrandom v0.3.4
+   Compiling tauri-runtime-wry v2.12.2
+   Compiling unicode-segmentation v1.13.3
+   Compiling softbuffer v0.4.8
+   Compiling tokio v1.53.3
+   Compiling window-vibrancy v0.8.1
+   Compiling mime v0.3.17
+   Compiling phf_macros v0.13.1
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling serde_derive v1.0.229
+   Compiling zerofrom v0.1.8
+   Compiling thiserror-impl v2.0.21
+   Compiling phf v0.13.1
+   Compiling cssparser-macros v0.7.1
+   Compiling derive_more-impl v2.1.1
+   Compiling yoke v0.8.3
+   Compiling windows-interface v0.59.3
+   Compiling windows-implement v0.60.2
+   Compiling zerovec v0.11.8
+   Compiling zerotrie v0.2.5
+   Compiling darling_macro v0.24.1
+   Compiling derive_more v2.1.1
+   Compiling windows-core v0.62.2
+   Compiling markup5ever v0.39.0
+   Compiling darling v0.24.1
+   Compiling cssparser v0.37.0
+   Compiling html5ever v0.39.0
+   Compiling serde_with_macros v3.24.0
+   Compiling schemars_derive v0.8.22
+   Compiling webview2-com-macros v0.8.1
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling webview2-com-sys v0.39.1
+   Compiling icu_locale_core v2.3.0
+   Compiling icu_collections v2.3.0
+   Compiling serialize-to-javascript-impl v0.1.2
+   Compiling serde_repr v0.1.21
+   Compiling serde_with v3.24.0
+   Compiling windows-collections v0.3.2
+   Compiling windows-future v0.3.2
+   Compiling windows-numerics v0.3.1
+   Compiling dom_query v0.28.0
+   Compiling icu_provider v2.3.1
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling jsonptr v0.7.1
+   Compiling cargo-platform v0.1.9
+   Compiling plist v1.10.1
+   Compiling cargo_metadata v0.19.2
+   Compiling json-patch v4.2.0
+   Compiling windows v0.62.2
+   Compiling dpi v0.1.2
+   Compiling cargo_toml v1.0.1
+   Compiling keyboard-types v0.8.3
+   Compiling serialize-to-javascript v0.1.2
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling urlpattern v0.6.0
+   Compiling tauri-build v2.7.3
+   Compiling tauri-codegen v2.7.3
+   Compiling tauri v2.12.4
+   Compiling assistant-prof v0.1.0 (C:\Users\user\Documents\assistant-prof\desktop\src-tauri)
+   Compiling tauri-macros v2.7.3
+   Compiling tao v0.37.1
+   Compiling webview2-com v0.39.1
+    Finished `release` profile [optimized] target(s) in 3m 54s
+       Built application at: C:\Users\user\Documents\assistant-prof\desktop\src-tauri\target\release\assistant-prof.exe
+uv run --directory backend --locked python scripts/measure.py --backend-exe dist/assistant-prof-backend/assistant-prof-backend.exe --app-exe ../desktop/src-tauri/target/release/assistant-prof.exe --out-dir ../docs/reports 
+measure: backend alone, run 1/5
+measure: backend alone, run 2/5
+measure: backend alone, run 3/5
+Traceback (most recent call last):
+  File "C:\Users\user\Documents\assistant-prof\backend\scripts\measure.py", line 558, in <module>
+    raise SystemExit(main(sys.argv[1:]))
+                     ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\Documents\assistant-prof\backend\scripts\measure.py", line 548, in main
+    path = run(args, today=date.today(), progress=progress)  # local date
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\Documents\assistant-prof\backend\scripts\measure.py", line 516, in run
+    measure_backend(backend_exe, args.idle_seconds, report)
+  File "C:\Users\user\Documents\assistant-prof\backend\scripts\measure.py", line 390, in measure_backend
+    if process.wait(timeout=EXIT_TIMEOUT_S) != 0:
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py", line 1593, in _wait
+    raise TimeoutExpired(self.args, timeout)
+subprocess.TimeoutExpired: Command '['C:\\Users\\user\\Documents\\assistant-prof\\backend\\dist\\assistant-prof-backend\\assistant-prof-backend.exe', '--port', '0', '--exit-on-stdin-eof']' timed out after 10.0 seconds
+error: recipe `measure` failed on line 126 with exit code 1

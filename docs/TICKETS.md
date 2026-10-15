@@ -43,7 +43,7 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
   - Entry point `python -m assistant_prof --port N`.
   - **Acceptance:** requests without the token → 401; health returns version; CORS allows only the listed origins (dev origin only in dev mode); logs are JSON and redact a fake key; tests cover all of it.
 
-- [ ] **T-006 · Packaging walking skeleton** · M · Depends on: T-003 · ARCH §4, §16 · ADR-035
+- [x] **T-006 · Packaging walking skeleton** · M · Depends on: T-003 · ARCH §4, §16 · ADR-035
   - PyInstaller onedir build (no UPX) of the backend exposing only `/health`.
   - Minimal Tauri Rust code: pick a free port, generate the session token, spawn the packaged backend, wait for `/health`, kill it on exit (T-801 hardens this later).
   - Re-runnable measurement script, exposed as `just measure` (add it to the CLAUDE.md command table): backend bundle size, cold start until the first authorised `/health` 200, idle RSS of the backend and of the whole app. Results written to `docs/reports/`.

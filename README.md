@@ -37,10 +37,14 @@ git clone <repo-url> assistant-prof
 cd assistant-prof
 just setup   # install Python, Node and Rust dependencies, install pre-commit hooks
 just check   # linters, type checks and tests (must pass before every commit)
+just build-backend   # package the backend once (PyInstaller); the desktop app starts it
 just dev     # open the desktop app in dev mode with hot reload
 ```
 
 The first `just check` and `just dev` compile Tauri and take a few minutes; later runs are incremental.
+`just dev` starts the packaged backend from `backend/dist/` (or the executable named by `ASSISTANT_PROF_BACKEND_EXE`);
+rerun `just build-backend` after backend changes. `just measure` builds everything in release mode and writes
+bundle size, cold start and idle memory to `docs/reports/`.
 `just backend` starts the Python backend alone: it prints a session token and a ready line with its port;
 send the token in the `X-Session-Token` header (for example `curl -H "X-Session-Token: <token>" http://127.0.0.1:<port>/health`).
 Run `just` alone to list every command.

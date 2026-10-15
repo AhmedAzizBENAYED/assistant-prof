@@ -4,6 +4,10 @@
 set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
 
 tauri_manifest := "desktop/src-tauri/Cargo.toml"
+exe := if os_family() == "windows" { ".exe" } else { "" }
+# Paths relative to backend/, where `uv run --directory backend` runs the scripts.
+backend_exe := "dist/assistant-prof-backend/assistant-prof-backend" + exe
+app_exe := "../desktop/src-tauri/target/release/assistant-prof" + exe
 
 # List available recipes
 default:
@@ -16,7 +20,7 @@ setup:
     cargo fetch --manifest-path {{ tauri_manifest }} --locked
     uvx pre-commit@4.7.0 install
 
-# Backend + frontend + Tauri in dev mode (the backend joins in T-006/T-801)
+# Backend + frontend + Tauri in dev mode (needs `just build-backend` once; T-801 hardens it)
 dev:
     pnpm --dir desktop tauri dev
 
@@ -37,6 +41,7 @@ check-frontend: lint-frontend test-frontend
 check-desktop:
     cargo fmt --manifest-path {{ tauri_manifest }} --check
     cargo clippy --manifest-path {{ tauri_manifest }} --all-targets --locked -- -D warnings
+    cargo test --manifest-path {{ tauri_manifest }} --locked
 
 # Backend linters and type checks
 lint-backend:
@@ -110,6 +115,15 @@ eval-live:
 eval-templates:
     @echo "not implemented: T-207"
     @exit 1
+
+# Package the backend with PyInstaller (onedir, no UPX) into backend/dist/assistant-prof-backend
+build-backend:
+    uv run --directory backend --locked --group packaging pyinstaller packaging/assistant-prof-backend.spec --noconfirm --clean --distpath dist --workpath build/pyinstaller
+
+# Bundle size, cold start and idle memory of the packaged app; report in docs/reports/
+measure *args: build-backend
+    pnpm --dir desktop tauri build --no-bundle
+    uv run --directory backend --locked python scripts/measure.py --backend-exe {{ backend_exe }} --app-exe {{ app_exe }} --out-dir ../docs/reports {{ args }}
 
 # PyInstaller backend + Tauri installer
 build:

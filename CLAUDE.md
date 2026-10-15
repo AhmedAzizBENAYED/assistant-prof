@@ -62,6 +62,8 @@ If the ticket is unclear, contradicts the architecture, or is bigger than expect
 | `just eval-live` | evaluation against real free providers (manual, uses quota) |
 | `just eval-templates` | template-learning accuracy report on the corpus |
 | `just build` | PyInstaller backend + Tauri installer |
+| `just build-backend` | PyInstaller onedir backend only, into `backend/dist/assistant-prof-backend/` (started by `just dev` and the release shell) |
+| `just measure` | release build, then bundle size, cold start and idle memory (RSS and USS) against the ARCHITECTURE §2 budgets; report in `docs/reports/` |
 | `just fmt` | format all code in place (ruff, prettier, rustfmt) |
 | `just check-backend` / `just check-frontend` / `just check-desktop` | the parts of `just check`, one stack each |
 | `just audit` | dependency audits: pip-audit, pnpm audit, cargo audit (not part of `check`; non-blocking in CI) |
