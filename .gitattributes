@@ -1,0 +1,12 @@
+# Normalize text to LF everywhere, including on Windows checkouts.
+* text=auto eol=lf
+
+# Word documents and other binaries: never diff or convert.
+*.docx binary
+*.doc binary
+*.dotx binary
+*.png binary
+*.ico binary
+*.icns binary
+*.pdf binary
+*.zip binary

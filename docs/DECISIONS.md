@@ -197,3 +197,17 @@ Accepted · 2026-10-15
 - **Decision:** right after the backend core (T-003), ticket T-006 packages a `/health`-only backend with PyInstaller onedir, starts it from Tauri, and records bundle size, cold start and idle RSS; the measurement is repeated after LangGraph is added.
 - **Why:** packaging, footprint and antivirus problems can invalidate the stack; discovering them in the last milestone would be too late.
 - **Cost:** early Rust and packaging work, later extended by T-801 and T-802.
+
+### ADR-036, Monorepo tooling layout
+Accepted · 2026-10-15
+- **Decision:**
+  - one pnpm workspace at the root (`frontend`, `desktop`) with a single lockfile; `desktop/package.json` holds only the Tauri CLI, so the frontend stays a plain Vite app;
+  - the `justfile` uses PowerShell on Windows and `sh` elsewhere; recipes use `uv --directory`, `pnpm --dir` and `cargo --manifest-path` instead of `cd` so the same lines run in both shells;
+  - recipes for later tickets are stubs that print `not implemented: T-xxx` and exit 1; `just check` never calls a stub;
+  - the backend uses the `uv_build` build backend and is pinned to Python 3.12;
+  - `rust-toolchain.toml` sits at the repository root (rustup resolves it from the working directory, not from `--manifest-path`) and installs `rustfmt` and `clippy`;
+  - TypeScript is pinned to 6.0.x because typescript-eslint does not support TypeScript 7 yet; lift the pin when it does;
+  - pre-commit runs through `uvx` (pinned version in the `justfile`) and only runs fast checks; mypy and the tests run in `just check`.
+- **Why:** one command set for Windows and Linux developers and CI; fewer tools to install; lockfiles for every stack.
+- **Cost:** PowerShell 5.1 reports every failing command as exit code 1 (the exact code is lost, failure is not).
+- **Open point (T-801):** Tauri should pass its app data directory to the backend at startup (CLI argument) so all user data lives under one folder chosen by the shell; ARCHITECTURE §4 and §7.9 are updated when T-801 is implemented.

@@ -1,0 +1,73 @@
+[project]
+name = "assistant-prof"
+version = "0.1.0"
+description = "Backend sidecar of Assistant Prof: edits and creates Word documents for teachers."
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "SIM",      # simplify
+    "C4",       # comprehensions
+    "PTH",      # pathlib
+    "RUF",      # ruff-specific
+    "N",        # naming
+    "S",        # bandit
+    "T20",      # no print
+    "PT",       # pytest style
+    "D",        # docstrings
+]
+ignore = [
+    "D100", "D104", "D105", "D107",  # module/package/magic/__init__ docstrings optional
+    "D203", "D213",                  # pick one docstring layout (D211, D212)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "D"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+mypy_path = "src"
+files = ["src", "tests"]
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+    "--cov=assistant_prof",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-fail-under=75",
+]
+xfail_strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["assistant_prof"]

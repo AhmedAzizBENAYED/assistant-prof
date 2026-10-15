@@ -112,6 +112,9 @@ assistant-prof/
 ├─ CLAUDE.md                     working rules for Claude Code
 ├─ README.md
 ├─ justfile                      one entry point for all commands
+├─ package.json  pnpm-workspace.yaml  pnpm-lock.yaml   pnpm workspace: frontend + desktop (ADR-036)
+├─ rust-toolchain.toml           stable + rustfmt + clippy
+├─ .pre-commit-config.yaml  .editorconfig  .gitattributes
 ├─ docs/
 │  ├─ ARCHITECTURE.md  DECISIONS.md  TICKETS.md
 │  ├─ PROVIDERS.md               current free models and limits (dated)
@@ -141,6 +144,7 @@ assistant-prof/
 │  ├─ package.json  vite.config.ts  tsconfig.json
 │  └─ src/  app/ pages/ features/ components/ api/ i18n/ lib/
 └─ desktop/
+   ├─ package.json      Tauri CLI only
    └─ src-tauri/        Rust shell, tauri.conf.json, capabilities, icons
 ```
 

@@ -1,0 +1,17 @@
+:root {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #1f2933;
+  background: #f7f7f2;
+}
+
+body {
+  margin: 0;
+}
+
+.placeholder {
+  display: grid;
+  place-content: center;
+  min-height: 100vh;
+  text-align: center;
+  font-size: 1.25rem;
+}

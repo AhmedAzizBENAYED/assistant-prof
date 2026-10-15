@@ -1,0 +1,20 @@
+[package]
+name = "assistant-prof"
+version = "0.1.0"
+description = "Assistant Prof desktop shell"
+edition = "2024"
+publish = false
+
+[lib]
+# The _lib suffix avoids a name clash with the binary on Windows (cargo#8519).
+name = "assistant_prof_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.4", features = [] }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }

@@ -1,0 +1,45 @@
+# Fast checks only; mypy and the test suites run in `just check`.
+# Installed by `just setup` (pre-commit runs through uvx, no project dependency).
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+        args: [--allow-multiple-documents]  # pnpm lockfile
+      - id: check-toml
+      - id: check-json
+        exclude: tsconfig.*\.json$
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+        exclude: ^corpus/
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --project backend --locked ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --project backend --locked ruff format
+        language: system
+        types: [python]
+      - id: frontend-lint
+        name: eslint + prettier (frontend)
+        entry: just lint-frontend
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --manifest-path desktop/src-tauri/Cargo.toml --check
+        language: system
+        files: ^desktop/src-tauri/.*\.rs$
+        pass_filenames: false

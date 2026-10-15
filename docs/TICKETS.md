@@ -25,7 +25,7 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
 
 ## E0, Foundation
 
-- [ ] **T-001 · Monorepo scaffold and tooling** · M · Depends on: –
+- [x] **T-001 · Monorepo scaffold and tooling** · M · Depends on: –
   - Create the layout from ARCHITECTURE §5: `backend/` (uv project, `src/assistant_prof`, empty packages), `frontend/` (Vite React TS strict), `desktop/src-tauri/` (Tauri 2 app pointing to the frontend), `corpus/`, `docs/`.
   - Tooling: ruff, mypy strict, pytest (+ coverage), eslint, prettier, vitest, cargo clippy, pre-commit, `.editorconfig`, `.gitattributes` (LF, `*.docx binary`, `*.doc binary`), `.gitignore`.
   - `justfile` with the commands listed in CLAUDE.md (stubs allowed for later ones, printing "not implemented: T-xxx").
@@ -309,6 +309,7 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
 
 - [ ] **T-801 · Tauri shell and sidecar lifecycle** · L · Depends on: T-003, T-601, T-006 · ARCH §4
   - Builds on the T-006 skeleton: port + token handshake, health wait, crash restart once, graceful shutdown + process-tree kill, single instance, window state, native save dialog, CSP and minimal capabilities.
+  - Tauri passes its app data directory to the backend at startup (CLI argument), so all user data lives under one folder; update ARCHITECTURE §4 and §7.9 accordingly (open point of ADR-036).
   - **Acceptance:** manual + scripted tests on Windows: kill backend → restarts; close window → no orphan process.
 
 - [ ] **T-802 · Backend packaging (PyInstaller onedir)** · M · Depends on: T-801

@@ -1,0 +1,43 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# Rust / Tauri
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+
+# Packaging output
+backend/dist/
+*.spec.bak
+
+# Local data and secrets
+.env
+.env.*
+*.log
