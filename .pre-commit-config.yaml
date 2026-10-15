@@ -19,6 +19,11 @@ repos:
         args: [--maxkb=1024]
         exclude: ^corpus/
 
+  - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
+    rev: v1.7.12.25
+    hooks:
+      - id: actionlint
+
   - repo: local
     hooks:
       - id: ruff-check

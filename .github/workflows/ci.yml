@@ -1,0 +1,203 @@
+# Lint, type checks and tests on ubuntu + windows (ADR-037).
+# Jobs run the same `just` recipes as local development, so CI and `just check` cannot drift.
+name: CI
+
+# Single developer, direct pushes to main: no pull_request trigger (ADR-037).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1" # weekly full run + audits (Monday 04:17 UTC)
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  FORCE_COLOR: "1"
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      # A skipped filter (schedule, manual run) yields empty outputs: run everything.
+      backend: ${{ steps.filter.outputs.backend || 'true' }}
+      frontend: ${{ steps.filter.outputs.frontend || 'true' }}
+      desktop: ${{ steps.filter.outputs.desktop || 'true' }}
+      audit: ${{ steps.filter.outputs.audit || 'true' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name == 'push'
+        with:
+          filters: |
+            shared: &shared
+              - justfile
+              - .github/workflows/ci.yml
+            backend:
+              - *shared
+              - backend/**
+            frontend:
+              - *shared
+              - frontend/**
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+              - .node-version
+            desktop:
+              - *shared
+              - desktop/**
+              - rust-toolchain.toml
+            audit:
+              - *shared
+              - backend/uv.lock
+              - pnpm-lock.yaml
+              - desktop/src-tauri/Cargo.lock
+
+  backend:
+    name: Backend (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: just
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+          cache-python: true
+      - run: uv sync --directory backend --locked
+      - run: just check-backend
+
+  frontend:
+    name: Frontend (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: just
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: just check-frontend
+
+  desktop:
+    name: Desktop (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Tauri system packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: just
+      - name: Install Rust toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: desktop/src-tauri -> target
+      - run: just check-desktop
+
+  audit:
+    name: Dependency audit (non-blocking)
+    needs: changes
+    if: needs.changes.outputs.audit == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: just,cargo-audit
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - id: pip_audit
+        continue-on-error: true
+        run: just audit-backend
+      - id: pnpm_audit
+        continue-on-error: true
+        run: just audit-frontend
+      - id: cargo_audit
+        continue-on-error: true
+        run: just audit-desktop
+      - name: Report audit findings as warnings
+        if: >-
+          steps.pip_audit.outcome == 'failure' ||
+          steps.pnpm_audit.outcome == 'failure' ||
+          steps.cargo_audit.outcome == 'failure'
+        env:
+          PIP: ${{ steps.pip_audit.outcome }}
+          PNPM: ${{ steps.pnpm_audit.outcome }}
+          CARGO: ${{ steps.cargo_audit.outcome }}
+        run: |
+          echo "::warning title=Dependency audit::pip-audit=$PIP, pnpm audit=$PNPM, cargo audit=$CARGO. See the step logs."
+
+  # Single status to look at. Skipped jobs (path filters) count as passing.
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [changes, backend, frontend, desktop]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail if any required job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - run: echo "All required jobs passed or were skipped."

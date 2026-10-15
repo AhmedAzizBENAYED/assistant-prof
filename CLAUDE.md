@@ -14,7 +14,7 @@ Read before any work:
 3. **Implement** in small steps, tests alongside the code.
 4. **Verify:** run `just check` (lint, types, tests). All must pass. Show the result.
 5. **Docs:** update `ARCHITECTURE.md` if behaviour or structure changed; add an ADR in `DECISIONS.md` for any new decision or deviation; tick the ticket in `TICKETS.md`.
-6. **Commit** with a Conventional Commit message referencing the ticket (`feat(executor): rewrite op preserves runs [T-105]`). One ticket = one or a few focused commits. Never push or tag unless asked.
+6. **Commit and push** with a Conventional Commit message referencing the ticket (`feat(executor): rewrite op preserves runs [T-105]`). One ticket = one or a few focused commits. Work directly on `main` (no branches, no PRs): after committing, push to `main` and check the CI run (`ci-ok`). If it is red, fix it before starting anything else. Never tag unless asked.
 7. **Report:** what was done, test results, anything left or risky.
 
 If the ticket is unclear, contradicts the architecture, or is bigger than expected: say so in the plan and propose a split instead of improvising.
@@ -63,6 +63,7 @@ If the ticket is unclear, contradicts the architecture, or is bigger than expect
 | `just build` | PyInstaller backend + Tauri installer |
 | `just fmt` | format all code in place (ruff, prettier, rustfmt) |
 | `just check-backend` / `just check-frontend` / `just check-desktop` | the parts of `just check`, one stack each |
+| `just audit` | dependency audits: pip-audit, pnpm audit, cargo audit (not part of `check`; non-blocking in CI) |
 
 (Commands are created in T-001; keep this table in sync with the `justfile`. Recipes of later tickets are stubs that print `not implemented: T-xxx` and exit 1; `just check` never calls a stub.)
 
