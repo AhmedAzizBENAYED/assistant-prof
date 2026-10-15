@@ -75,6 +75,12 @@ addopts = [
     "--cov-fail-under=75",
 ]
 xfail_strict = true
+filterwarnings = [
+    # Starlette's TestClient warns when it runs on the standard `httpx` and suggests `httpx2`.
+    # We keep `httpx` on purpose: `httpx2` is not a vetted dependency. Only this exact
+    # message is ignored. Revisit only if Starlette's official docs name a replacement.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+]
 
 [tool.coverage.run]
 branch = true
