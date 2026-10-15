@@ -1,0 +1,22 @@
+# just check, 2026-10-16, T-005a work in progress (no frontend change).
+# NOTE: output was filtered through grep at capture time (lines matching passed|failed|error|Error|TOTAL|Required|Success|All checks|warning); full output not available.
+uv run --directory backend --locked python ../corpus/generator/build_corpus.py
+D  corpus/docs/.gitkeep
+?? corpus/docs/
+All checks passed!
+Success: no issues found in 63 source files
+tests\unit\core\test_errors.py ........                                  [ 64%]
+TOTAL                                  774      2    100      4    99%
+Required test coverage of 75% reached. Total coverage: 99.31%
+============================ 331 passed in 33.48s =============================
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-pool]: Failed to start forks worker for test files C:/Users/user/Documents/assistant-prof/frontend/src/app/App.test.tsx.
+Caused by: Error: [vitest-pool-runner]: Timeout waiting for worker to respond
+     Errors  1 error
+[ELIFECYCLE] Test failed. See above for more details.
+error: recipe `test-frontend` failed on line 64 with exit code 1
+
+[exited with code 0]

@@ -143,8 +143,8 @@ assistant-prof/
 │  └─ tests/            unit/, integration/, golden/, eval/, fixtures/
 ├─ corpus/
 │  ├─ generator/        scripts that build the synthetic test corpus
-│  ├─ docs/             generated + real .docx (real ones git-ignored if needed)
-│  └─ instructions.yaml test instructions with expected outcomes
+│  ├─ docs/             generated .docx (committed, byte-deterministic) + README; real ones git-ignored if needed
+│  └─ instructions.yaml test instructions with expected outcomes (schema: generator/corpus_gen/instructions.py)
 ├─ frontend/
 │  ├─ package.json  vite.config.ts  tsconfig.json
 │  └─ src/  app/ pages/ features/ components/ api/ i18n/ lib/
@@ -593,11 +593,11 @@ Structured JSON logs (rotating, 5 × 5 MB), correlation ID per instruction acros
 Coverage gates: backend core packages (docmodel, operations, executor, templates, llm, agent) ≥ 85 % lines; whole backend ≥ 75 %.
 
 **Test corpus** (ADR-031): no real teacher documents are available yet, so a generator builds a diverse synthetic corpus designed to mimic real-world mess:
-- T-005a: python-docx files and the instruction set;
-- T-005b: raw-XML fixtures for what python-docx cannot produce (RTL header, text box, columns, tracked changes, equations, chart, fields, duplicated paraIds, inline tokens), a committed binary `.doc`, and byte-deterministic output (fixed zip timestamps and docProps);
+- T-005a: python-docx files (including the bilingual RTL header), the instruction set, Word-style paragraph IDs added by post-processing, and byte-deterministic output (fixed zip timestamps and docProps) (ADR-041);
+- T-005b: raw-XML fixtures for what python-docx cannot produce (text box, columns, tracked changes, equations, chart, fields, duplicated paraIds, inline tokens) and a committed binary `.doc`;
 - T-005c (human, non-blocking): files opened and saved again in Microsoft Word, committed as "Word-saved" variants.
 
-`corpus/instructions.yaml` designates targets by text or role, never by block ID. Real documents are added when available.
+`corpus/instructions.yaml` designates targets by text or role, never by block ID; text excerpts are matched after one shared normalisation (NFC, no-break spaces → space, ’ → ', collapsed whitespace; ADR-041). Real documents are added when available.
 
 ## 18. Risks
 

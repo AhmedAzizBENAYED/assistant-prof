@@ -45,8 +45,8 @@ check-desktop:
 
 # Backend linters and type checks
 lint-backend:
-    uv run --directory backend --locked ruff check .
-    uv run --directory backend --locked ruff format --check .
+    uv run --directory backend --locked ruff check . ../corpus/generator
+    uv run --directory backend --locked ruff format --check . ../corpus/generator
     uv run --directory backend --locked mypy
 
 # Frontend linters, formatting and type checks
@@ -81,8 +81,8 @@ audit-desktop:
 
 # Format all code in place
 fmt:
-    uv run --directory backend --locked ruff check --fix .
-    uv run --directory backend --locked ruff format .
+    uv run --directory backend --locked ruff check --fix . ../corpus/generator
+    uv run --directory backend --locked ruff format . ../corpus/generator
     pnpm --dir frontend format
     cargo fmt --manifest-path {{ tauri_manifest }}
 
@@ -96,10 +96,9 @@ gen-api:
     @echo "not implemented: T-504"
     @exit 1
 
-# Regenerate the synthetic test corpus
+# Regenerate the synthetic test corpus into corpus/docs/ (byte-identical across runs)
 corpus:
-    @echo "not implemented: T-005a"
-    @exit 1
+    uv run --directory backend --locked python ../corpus/generator/build_corpus.py
 
 # Agent evaluation with FakeLLM replay
 eval:

@@ -1,0 +1,386 @@
+# Test instructions with expected outcomes (T-005a, ADR-031).
+# Schema and matching rules: corpus/generator/corpus_gen/instructions.py.
+# Targets are a text excerpt (matching exactly one paragraph after normalisation) or a role
+# (+ ordinal), never a block ID. An empty target list means the whole document.
+# Instruction texts are kept as a teacher would type them, typos included (tag `hurried`).
+version: 1
+instructions:
+  # --- formatting: fast path ------------------------------------------------------------------
+  - id: I-001
+    category: formatting
+    document: 01-styled-exam.docx
+    instruction: Mets toutes les consignes en gras.
+    expected:
+      intent: edit
+      operations: [set_font]
+      targets: [{role: consigne}]
+      fast_path: true
+
+  - id: I-002
+    category: formatting
+    document: 02-manual-exam.docx
+    instruction: Police Arial 12 pour tout le document.
+    expected:
+      intent: edit
+      operations: [set_font]
+      targets: []
+      fast_path: true
+
+  - id: I-003
+    category: formatting
+    document: 07-answer-lines.docx
+    instruction: Justifie le texte.
+    expected:
+      intent: edit
+      operations: [set_alignment]
+      targets: [{role: texte_support}]
+      fast_path: true
+
+  - id: I-004
+    category: formatting
+    document: 03-table-header-logo.docx
+    instruction: Marges de 2,5 cm partout.
+    expected:
+      intent: edit
+      operations: [set_margins]
+      targets: []
+      fast_path: true
+
+  - id: I-005
+    category: formatting
+    document: 08-mcq.docx
+    instruction: Mets la page en paysage.
+    expected:
+      intent: edit
+      operations: [set_orientation]
+      targets: []
+      fast_path: true
+
+  - id: I-006
+    category: formatting
+    document: 01-styled-exam.docx
+    instruction: Souligne les titres des exercices.
+    expected:
+      intent: edit
+      operations: [set_font]
+      targets: [{role: section}]
+      fast_path: true
+
+  - id: I-007
+    category: formatting
+    document: 12-no-paraid.docx
+    instruction: Mets ce paragraphe en italique.
+    selection: [{text: "Il existe quatre types de phrases."}]
+    expected:
+      intent: edit
+      operations: [set_font]
+      targets: [{text: "Il existe quatre types de phrases."}]
+      fast_path: true
+
+  - id: I-008
+    category: formatting
+    document: 01-styled-exam.docx
+    instruction: mets les questions en taille 14 stp
+    tags: [hurried]
+    expected:
+      intent: edit
+      operations: [set_font]
+      targets: [{role: question}]
+      fast_path: true
+
+  - id: I-009
+    category: formatting
+    document: 13-dictation.docx
+    instruction: interligne 1,5 pour tout le doc
+    tags: [hurried]
+    expected:
+      intent: edit
+      operations: [set_spacing]
+      targets: []
+      fast_path: true
+
+  - id: I-010
+    category: formatting
+    document: 04-tunisian-bilingual-header.docx
+    instruction: Centre le titre du devoir.
+    expected:
+      intent: edit
+      operations: [set_alignment]
+      targets: [{role: titre, ordinal: 1}]
+      fast_path: true
+
+  - id: I-011
+    category: formatting
+    document: 08-mcq.docx
+    instruction: Décale tous les choix de réponse de 2 cm vers la droite.
+    expected:
+      intent: edit
+      operations: [set_indent]
+      targets: [{role: choix_qcm}]
+      fast_path: true
+
+  # --- formatting: needs the model --------------------------------------------------------------
+  - id: I-012
+    category: formatting
+    document: 02-manual-exam.docx
+    instruction: Transforme les questions de l'exercice 1 en vraie liste numérotée.
+    expected:
+      intent: edit
+      operations: [set_list, rewrite]
+      targets:
+        - {text: "1) Hier, nous (aller) au cinéma"}
+        - {text: "2) Les élèves (finir) leurs devoirs"}
+        - {text: "3) Tu (prendre) le bus"}
+        - {text: "4) Ma sœur (naître) en 2015."}
+      fast_path: false
+
+  - id: I-013
+    category: formatting
+    document: 07-answer-lines.docx
+    instruction: Mets en gras les mots importants.
+    tags: [near_miss]
+    expected:
+      intent: edit
+      operations: [rewrite]
+      targets: [{role: texte_support}]
+      fast_path: false
+
+  - id: I-014
+    category: formatting
+    document: 01-styled-exam.docx
+    instruction: Mets le titre en forme comme sur mes autres contrôles.
+    tags: [near_miss]
+    expected:
+      intent: edit
+      operations: [apply_role_format]
+      targets: [{role: titre, ordinal: 1}]
+      fast_path: false
+
+  - id: I-015
+    category: formatting
+    document: 08-mcq.docx
+    instruction: Mets la bonne réponse en gras pour chaque question.
+    tags: [near_miss]
+    expected:
+      intent: edit
+      operations: [rewrite]
+      targets: [{role: choix_qcm}]
+      fast_path: false
+
+  - id: I-016
+    category: formatting
+    document: 13-dictation.docx
+    instruction: souligne les verbes conjugues dans le texte
+    tags: [hurried, near_miss]
+    expected:
+      intent: edit
+      operations: [rewrite]
+      targets: [{role: texte_support}]
+      fast_path: false
+
+  - id: I-017
+    category: formatting
+    document: 03-table-header-logo.docx
+    instruction: Ajoute un saut de page avant l'exercice 4.
+    expected:
+      intent: edit
+      operations: [page_break_before]
+      targets: [{text: "Exercice 4 : Écris le contraire de chaque adjectif."}]
+      fast_path: false
+
+  # --- rewording --------------------------------------------------------------------------------
+  - id: I-018
+    category: rewording
+    document: 13-dictation.docx
+    instruction: Simplifie le texte de la dictée pour des élèves en difficulté.
+    expected:
+      intent: edit
+      operations: [rewrite]
+      targets: [{role: texte_support}]
+
+  - id: I-019
+    category: rewording
+    document: 01-styled-exam.docx
+    instruction: Vouvoie les élèves dans toutes les consignes.
+    expected:
+      intent: edit
+      operations: [rewrite]
+      targets: [{role: consigne}]
+
+  - id: I-020
+    category: rewording
+    document: 02-manual-exam.docx
+    instruction: corrige les fautes dorthographe stp
+    tags: [hurried]
+    expected:
+      intent: edit
+      operations: [rewrite]
+      targets: [{text: "Acorde le participe passé"}]
+
+  - id: I-021
+    category: rewording
+    document: 03-table-header-logo.docx
+    instruction: Reformule la consigne de l'exercice 2 pour qu'elle soit plus claire.
+    expected:
+      intent: edit
+      operations: [rewrite]
+      targets: [{text: "Exercice 2 : Remplace les groupes nominaux soulignés"}]
+
+  - id: I-022
+    category: rewording
+    document: 14-answer-key.docx
+    instruction: Remplace « pts » par « points » partout.
+    expected:
+      intent: edit
+      operations: [replace_in]
+      targets:
+        - {text: "Exercice 1 (6 pts)"}
+        - {text: "Exercice 2 (6 pts)"}
+        - {text: "Exercice 3 (8 pts)"}
+
+  - id: I-023
+    category: rewording
+    document: 04-tunisian-bilingual-header.docx
+    instruction: change le titre en Devoir de synthese n°1
+    tags: [hurried]
+    expected:
+      intent: edit
+      operations: [replace_in]
+      targets: [{text: "Devoir de contrôle n°1"}]
+
+  # --- generation -------------------------------------------------------------------------------
+  - id: I-024
+    category: generation
+    document: 07-answer-lines.docx
+    instruction: Ajoute deux questions de compréhension après la question 5, avec des lignes pour répondre.
+    expected:
+      intent: edit
+      operations: [insert_after, insert_answer_lines]
+      targets: [{text: "5) Imagine la suite de l'histoire en trois phrases."}]
+
+  - id: I-025
+    category: generation
+    document: 08-mcq.docx
+    instruction: Ajoute trois questions de QCM sur « ce » et « se » à la fin.
+    expected:
+      intent: edit
+      operations: [insert_after]
+      targets: [{text: "a) on b) ont"}]
+
+  - id: I-026
+    category: generation
+    document: 01-styled-exam.docx
+    instruction: Ajoute un exercice 4 sur l'accord du participe passé avec être, noté sur 4 points.
+    expected:
+      intent: edit
+      operations: [insert_before]
+      targets: [{text: "Bon courage !"}]
+
+  - id: I-027
+    category: generation
+    document: 13-dictation.docx
+    instruction: Ajoute cinq phrases à trous en plus à la fin de l'exercice 1.
+    expected:
+      intent: edit
+      operations: [insert_after]
+      targets: [{text: "(arriver) sans bruit."}]
+
+  - id: I-028
+    category: generation
+    document: 14-answer-key.docx
+    instruction: Rédige une grille de critères pour corriger la rédaction de l'exercice 3.
+    expected:
+      intent: edit
+      operations: [insert_after]
+      targets: [{text: "Réponse libre."}]
+
+  - id: I-029
+    category: generation
+    document: 12-no-paraid.docx
+    instruction: rajoute 3 exemples de phrases exclamatives apres la definition
+    tags: [hurried]
+    expected:
+      intent: edit
+      operations: [insert_after]
+      targets: [{text: "La phrase exclamative exprime un sentiment fort."}]
+
+  - id: I-030
+    category: generation
+    document: 03-table-header-logo.docx
+    instruction: Ajoute à la fin un exercice de vocabulaire sous forme de tableau à compléter (mot, synonyme, contraire).
+    expected:
+      intent: edit
+      operations: [insert_after, insert_table]
+      targets: [{text: "ancien :"}]
+
+  # --- creation ---------------------------------------------------------------------------------
+  - id: I-031
+    category: creation
+    document: 01-styled-exam.docx
+    instruction: Crée un contrôle d'une heure sur l'imparfait pour une classe de 7e, avec 4 exercices et un barème sur 20.
+    expected:
+      intent: create
+
+  - id: I-032
+    category: creation
+    document: 08-mcq.docx
+    instruction: Fais-moi un QCM de 10 questions sur les homophones a/à, et/est et son/sont.
+    expected:
+      intent: create
+
+  - id: I-033
+    category: creation
+    document: 13-dictation.docx
+    instruction: Prépare une nouvelle dictée sur l'hiver, avec un exercice de conjugaison en tableau.
+    expected:
+      intent: create
+
+  - id: I-034
+    category: creation
+    document: 04-tunisian-bilingual-header.docx
+    instruction: cree un devoir de controle n2 meme modele, 3 exercices sur le present
+    tags: [hurried]
+    expected:
+      intent: create
+
+  # --- questions --------------------------------------------------------------------------------
+  - id: I-035
+    category: question
+    document: 14-answer-key.docx
+    instruction: Combien de points au total ?
+    expected:
+      intent: question
+      answer_contains: "20"
+
+  - id: I-036
+    category: question
+    document: 01-styled-exam.docx
+    instruction: Combien y a-t-il d'exercices dans ce contrôle ?
+    expected:
+      intent: question
+      answer_contains: "3"
+
+  - id: I-037
+    category: question
+    document: 08-mcq.docx
+    instruction: Combien de questions compte le QCM ?
+    expected:
+      intent: question
+      answer_contains: "5"
+
+  - id: I-038
+    category: question
+    document: 13-dictation.docx
+    instruction: c koi le verbe du tableau
+    tags: [hurried]
+    expected:
+      intent: question
+      answer_contains: finir
+
+  - id: I-039
+    category: question
+    document: 04-tunisian-bilingual-header.docx
+    instruction: Quelle est la durée de l'épreuve ?
+    expected:
+      intent: question
+      answer_contains: "1 h"

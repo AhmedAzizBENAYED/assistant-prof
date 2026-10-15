@@ -54,6 +54,7 @@ jobs:
             backend:
               - *shared
               - backend/**
+              - corpus/** # the generator and corpus are checked by the backend job (ADR-041)
             frontend:
               - *shared
               - frontend/**

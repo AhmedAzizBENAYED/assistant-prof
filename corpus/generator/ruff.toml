@@ -1,0 +1,2 @@
+# The generator runs in the backend environment and follows its rules (ADR-041).
+extend = "../../backend/pyproject.toml"

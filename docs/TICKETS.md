@@ -55,29 +55,30 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
   - SQLAlchemy 2 engine/session for `db/assistant.sqlite` in the data dir, Alembic configured (programmatic upgrade on startup), base tables: `settings`, `documents`, `versions`. Repository pattern.
   - **Acceptance:** startup migrates an empty DB; a migration test upgrades from zero to head; repositories unit-tested on a temp DB.
 
-- [ ] **T-005a · Basic test corpus (python-docx) and instruction set** · M · Depends on: T-001 · ADR-031
+- [x] **T-005a · Basic test corpus (python-docx) and instruction set** · M · Depends on: T-001 · ADR-031, ADR-041
   - `corpus/generator/` builds with python-docx the following files, each with a README line describing what it stresses:
     1. clean exam with proper styles and auto-numbered questions;
     2. same exam formatted **by hand** (Normal style, manual bold/size, typed "1)" numbers, spaces for alignment);
     3. header made with a **table** (school | class | date) and a logo image;
-    7. dotted and underscore **answer lines**; 8. QCM with a), b), c) choices;
+    4. **bilingual Tunisian header** (Arabic RTL + French: "الجمهورية التونسية / République Tunisienne", "وزارة التربية / Ministère de l'Éducation", with `w:bidi` and `w:rtl`), moved from T-005b;
+    7. dotted and underscore **answer lines**, typed and drawn by a tab stop with a dot leader; 8. QCM with a), b), c) choices;
     12. file saved without `w14:paraId` (plain python-docx output);
     13. dictation sheet with a support text and blanks; 14. answer key with a points table.
     Plus a corrupt zip for error tests.
-  - python-docx writes no `w14:paraId`: every file except 12 gets Word-style `w14:paraId`/`w14:textId` and namespace declarations added by a post-processing step, so the reader is tested on both cases.
-  - `corpus/instructions.yaml`: ≥ 30 French instructions covering formatting, rewording, generation, creation and questions; each with target document, expected intent, expected operation types (by name) and targets, and whether the fast path should catch it. **Targets are expressed by text (excerpt) or by role (+ ordinal), never by block ID.**
-  - **Acceptance:** `just corpus` regenerates everything; every file opens in python-docx (except the corrupt zip); the instruction file validates against a schema; every text target matches exactly one paragraph of its document.
+  - Realism spread across the files: French typography (U+00A0/U+202F before `: ; ? !`, ’), manual line breaks and empty paragraphs as spacing, varied points formats ("(2 pts)", "/2", "2 points") and "Exercice n°1 :" labels, mixed fonts (Times New Roman, Arial, Comic Sans MS), a conjugation grid to fill in, a page break between two parts.
+  - python-docx writes no `w14:paraId`: every file except 12 gets Word-style `w14:paraId`/`w14:textId` and namespace declarations added by a post-processing step, so the reader is tested on both cases. The same step makes the output byte-deterministic (fixed zip timestamps and order, fixed `docProps/core.xml` dates and author), moved from T-005b.
+  - `corpus/instructions.yaml`: ≥ 30 French instructions covering formatting, rewording, generation, creation and questions; each with target document, expected intent, expected operation types (by name) and targets, and whether the fast path should catch it; ≥ 5 typed like a hurried teacher and ≥ 3 near-misses that must not take the fast path. **Targets are expressed by text (excerpt) or by role (+ ordinal), never by block ID.** Text matching uses one normalisation function (NFC, no-break spaces → space, ’ → ', collapsed whitespace), reused by T-101.
+  - **Acceptance:** `just corpus` regenerates everything, byte-identical across runs; every file opens in python-docx (except the corrupt zip); the instruction file validates against a schema; every text target matches exactly one paragraph of its document.
 
-- [ ] **T-005b · Raw-XML fixtures and deterministic corpus** · M · Depends on: T-005a · ADR-031
+- [ ] **T-005b · Raw-XML fixtures** · M · Depends on: T-005a · ADR-031, ADR-041
   - Fixtures written as raw XML (lxml), carrying Word-style `w14:paraId`/`w14:textId`:
-    4. **bilingual Tunisian header** (Arabic RTL + French: "République Tunisienne / Ministère de l'Éducation");
     5. title in a **text box**; 6. two-column layout section;
     9. text with **tracked changes** and comments; 10. equations and a chart (locked content);
     11. long guide (≥ 30 pages, headings, TOC field);
     15. **duplicated `w14:paraId`** inside the body and between body and header (ID repair);
     16. paragraphs mixing a hyperlink, a footnote reference, a tab, a line break, a bookmark, coloured and highlighted text, and subscript (markup tokens and style spans).
   - A real Word 97–2003 `.doc` committed as a binary fixture and renamed to `.docx`.
-  - Deterministic output for the whole corpus (T-005a files included): fixed zip entry timestamps and order, fixed `docProps/core.xml` dates and author.
+  - The new files go through T-005a's deterministic packaging and its "committed corpus is up to date" test (ADR-041).
   - **Acceptance:** two runs of `just corpus` produce byte-identical files; each file has its README line; every file opens in python-docx except the deliberate bad ones.
 
 - [ ] **T-005c · Word-saved corpus variants** · S · **(human, non-blocking)** · Depends on: T-005b
