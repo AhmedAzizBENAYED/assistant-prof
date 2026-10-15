@@ -321,7 +321,7 @@ def table_header_logo() -> Document:
     school, level, date = table.rows[0].cells
     school.paragraphs[0].add_run().add_picture(io.BytesIO(logo_png()), width=Cm(1.5))
     run(school.add_paragraph(), "Collège Ibn Khaldoun\nSfax", bold=True, size=9)
-    run(level.paragraphs[0], "Classe : 6e A", bold=True)
+    run(level.paragraphs[0], "Classe : 7e A", bold=True)
     level.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
     run(date.paragraphs[0], "Date : ……………………")
     header_table_first(header.paragraphs[0], table)
