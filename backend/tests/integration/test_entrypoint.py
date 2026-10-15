@@ -6,7 +6,8 @@ import queue
 import subprocess
 import sys
 import threading
-from collections.abc import Iterator
+import time
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import IO
 
@@ -18,6 +19,7 @@ import assistant_prof
 STARTUP_TIMEOUT_S = 30
 EXIT_TIMEOUT_S = 15
 STDIN_EOF_EXIT_TIMEOUT_S = 5
+FORCED_DEADLINE_S = 1.0
 
 
 def _read_first_line(stream: IO[str]) -> str:
@@ -29,10 +31,26 @@ def _read_first_line(stream: IO[str]) -> str:
         pytest.fail("backend did not print its ready line in time")
 
 
-def _spawn(token: str, data_dir: Path, *, watch_stdin: bool) -> subprocess.Popen[str]:
+MODULE = ("-m", "assistant_prof")
+# The backend with a graceful shutdown that never completes and a 1 s deadline.
+HANGING_SHUTDOWN = (
+    "-c",
+    "import asyncio, uvicorn\n"
+    "from assistant_prof import main as m\n"
+    "async def never(self, sockets=None):\n"
+    "    await asyncio.Event().wait()\n"
+    "uvicorn.Server.shutdown = never\n"
+    f"m.SHUTDOWN_DEADLINE_S = {FORCED_DEADLINE_S}\n"
+    "raise SystemExit(m.main())\n",
+)
+
+
+def _spawn(
+    token: str, data_dir: Path, *, watch_stdin: bool, program: Sequence[str] = MODULE
+) -> subprocess.Popen[str]:
     env = {k: v for k, v in os.environ.items() if not k.startswith("ASSISTANT_PROF_")}
     env["ASSISTANT_PROF_TOKEN"] = token
-    args = [sys.executable, "-m", "assistant_prof", "--port", "0", "--data-dir", str(data_dir)]
+    args = [sys.executable, *program, "--port", "0", "--data-dir", str(data_dir)]
     if watch_stdin:
         args.append("--exit-on-stdin-eof")
     return subprocess.Popen(  # noqa: S603  # fixed command, test-controlled arguments
@@ -117,3 +135,34 @@ def test_closing_stdin_shuts_down_gracefully(
     events = [json.loads(line)["event"] for line in log_text.splitlines()]
     assert "shutdown.stdin_eof" in events
     assert events[-1] == "server.stopped"
+
+
+@pytest.mark.parametrize("trigger", ["stdin_eof", "post_shutdown"])
+def test_stuck_shutdown_is_forced_after_the_deadline(
+    trigger: str, token: str, tmp_path: Path
+) -> None:
+    """A graceful shutdown that never completes still ends the process, with code 0."""
+    process = _spawn(token, tmp_path, watch_stdin=True, program=HANGING_SHUTDOWN)
+    try:
+        assert process.stdin is not None
+        assert process.stdout is not None
+        port = json.loads(_read_first_line(process.stdout))["port"]
+        requested = time.monotonic()
+        if trigger == "stdin_eof":
+            process.stdin.close()
+        else:
+            headers = {"X-Session-Token": token}
+            response = httpx.post(f"http://127.0.0.1:{port}/shutdown", headers=headers)
+            assert response.status_code == 202
+        assert process.wait(timeout=FORCED_DEADLINE_S + STDIN_EOF_EXIT_TIMEOUT_S) == 0
+        elapsed = time.monotonic() - requested
+    finally:
+        _stop(process)
+
+    assert elapsed >= FORCED_DEADLINE_S * 0.9  # it waited for the deadline, then forced
+    log_text = (tmp_path / "logs" / "assistant-prof.log").read_text(encoding="utf-8")
+    records = [json.loads(line) for line in log_text.splitlines()]
+    forced = [r for r in records if r["event"] == "shutdown.forced"]
+    assert len(forced) == 1
+    assert forced[0]["level"] == "warning"
+    assert "server.stopped" not in [r["event"] for r in records]

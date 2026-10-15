@@ -7,10 +7,15 @@ stdout: logs go to the log file (and stderr in dev mode), and stray prints are s
 Parent-death detection (ADR-038): with ``--exit-on-stdin-eof`` the backend shuts down gracefully,
 as on ``POST /shutdown``, when its stdin reaches end of file. The desktop shell keeps the write end
 of that pipe open, so the OS closes it whenever the shell dies, even when it is killed.
+
+Shutdown deadline (ADR-039): once a shutdown is requested (stdin EOF or ``POST /shutdown``), the
+process is force-exited with code 0 if the graceful shutdown has not completed within 5 s.
 """
 
 import argparse
 import json
+import logging
+import os
 import sys
 import threading
 from collections.abc import Callable, Iterator, Sequence
@@ -30,6 +35,7 @@ from assistant_prof.core.paths import DataPaths
 
 HOST = "127.0.0.1"
 EXIT_CONFIG_ERROR = 2
+SHUTDOWN_DEADLINE_S = 5.0  # hard limit for a graceful shutdown once requested (ADR-039)
 _STDIN_CHUNK = 4096
 
 log = structlog.get_logger(__name__)
@@ -108,10 +114,50 @@ def _stdout_reserved() -> Iterator[TextIO | None]:
         sys.stdout = real_stdout
 
 
+def force_exit() -> None:
+    """Exit the process at once with code 0, after flushing the log handlers."""
+    logging.shutdown()
+    os._exit(0)
+
+
+class ShutdownDeadline:
+    """Force-exits the process if a requested graceful shutdown takes longer than ``seconds``."""
+
+    def __init__(self, seconds: float, on_expiry: Callable[[], None]) -> None:
+        self._seconds = seconds
+        self._on_expiry = on_expiry
+        self._lock = threading.Lock()
+        self._timer: threading.Timer | None = None
+        self._cancelled = False
+
+    def start(self) -> None:
+        """Start the countdown; later calls (a second shutdown request) do nothing."""
+        with self._lock:
+            if self._timer is not None or self._cancelled:
+                return
+            self._timer = threading.Timer(self._seconds, self._expire)
+            self._timer.name = "shutdown-deadline"
+            self._timer.daemon = True
+            self._timer.start()
+
+    def cancel(self) -> None:
+        """Stop the countdown for good: the shutdown completed."""
+        with self._lock:
+            self._cancelled = True
+            if self._timer is not None:
+                self._timer.cancel()
+
+    def _expire(self) -> None:
+        log.warning("shutdown.forced", deadline_s=self._seconds)
+        self._on_expiry()
+
+
 def serve(settings: Settings, handshake: TextIO | None, stdin: BinaryIO | None = None) -> None:
     """Run uvicorn until shutdown; write the ready line to ``handshake``.
 
     If ``stdin`` is given, its end of file triggers the same graceful shutdown as ``/shutdown``.
+    Once a shutdown is requested, the process is force-exited (code 0) if it has not completed
+    within ``SHUTDOWN_DEADLINE_S`` (ADR-039).
     """
 
     def announce(port: int) -> None:
@@ -133,13 +179,19 @@ def serve(settings: Settings, handshake: TextIO | None, stdin: BinaryIO | None =
     )
     server = _Server(config, on_ready=announce)
 
+    deadline = ShutdownDeadline(SHUTDOWN_DEADLINE_S, force_exit)
+
     def request_shutdown() -> None:
         server.should_exit = True
+        deadline.start()
 
     config.app = create_app(settings, request_shutdown=request_shutdown)
     if stdin is not None:
         watch_stdin(stdin, request_shutdown)
-    server.run()
+    try:
+        server.run()
+    finally:
+        deadline.cancel()  # graceful shutdown completed (or failed) in time
 
 
 def _stdin_for(settings: Settings) -> BinaryIO | None:

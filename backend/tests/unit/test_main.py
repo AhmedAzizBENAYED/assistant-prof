@@ -13,7 +13,14 @@ from pydantic import SecretStr
 import assistant_prof
 from assistant_prof import main as main_module
 from assistant_prof.core.config import Settings
-from assistant_prof.main import build_parser, main, ready_line, serve, watch_stdin
+from assistant_prof.main import (
+    ShutdownDeadline,
+    build_parser,
+    main,
+    ready_line,
+    serve,
+    watch_stdin,
+)
 
 
 def test_ready_line_format() -> None:
@@ -190,3 +197,45 @@ def test_serve_stops_when_stdin_closes(token: str) -> None:
         os.close(write_fd)
         thread.join(timeout=10)
     assert not thread.is_alive()
+
+
+def test_shutdown_deadline_fires_once() -> None:
+    calls: list[None] = []
+    deadline = ShutdownDeadline(0.05, lambda: calls.append(None))
+    deadline.start()
+    deadline.start()  # a second shutdown request does not start a second countdown
+    time.sleep(0.3)
+    assert calls == [None]
+
+
+def test_cancelled_shutdown_deadline_never_fires() -> None:
+    calls: list[None] = []
+    deadline = ShutdownDeadline(0.05, lambda: calls.append(None))
+    deadline.start()
+    deadline.cancel()
+    deadline.start()  # too late: the shutdown already completed
+    time.sleep(0.3)
+    assert calls == []
+
+
+def test_completed_shutdown_cancels_the_deadline(
+    monkeypatch: pytest.MonkeyPatch, token: str
+) -> None:
+    forced: list[None] = []
+    # Long enough for a real graceful shutdown (uvicorn polls should_exit every 0.1 s).
+    monkeypatch.setattr(main_module, "SHUTDOWN_DEADLINE_S", 1.0)
+    monkeypatch.setattr(main_module, "force_exit", lambda: forced.append(None))
+    handshake = io.StringIO()
+    settings = Settings(token=SecretStr(token), port=0)
+    thread = threading.Thread(target=serve, args=(settings, handshake), daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 20
+    while not handshake.getvalue() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    port = json.loads(handshake.getvalue())["port"]
+    headers = {"X-Session-Token": token}
+    assert httpx.post(f"http://127.0.0.1:{port}/shutdown", headers=headers).status_code == 202
+    thread.join(timeout=10)
+    assert not thread.is_alive()
+    time.sleep(1.3)  # past the deadline
+    assert forced == []
