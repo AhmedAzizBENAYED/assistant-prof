@@ -211,3 +211,20 @@ Accepted · 2026-10-15
 - **Why:** one command set for Windows and Linux developers and CI; fewer tools to install; lockfiles for every stack.
 - **Cost:** PowerShell 5.1 reports every failing command as exit code 1 (the exact code is lost, failure is not).
 - **Open point (T-801):** Tauri should pass its app data directory to the backend at startup (CLI argument) so all user data lives under one folder chosen by the shell; ARCHITECTURE §4 and §7.9 are updated when T-801 is implemented.
+
+### ADR-037, CI design and minutes budget
+Accepted · 2026-10-15
+- **Context:** the repository is public, so GitHub Actions minutes are free; it may become private later, where Windows minutes count double against the free quota. CI should be fast and frugal either way.
+- **Decision:**
+  - one workflow (`ci.yml`) triggered by `pull_request`, `push` to `main`, `workflow_dispatch` and a weekly schedule; branch pushes without a PR do not run, so a PR never runs twice;
+  - `concurrency` cancels superseded runs on the same ref;
+  - a `changes` job (`dorny/paths-filter`) enables the backend, frontend and desktop jobs only when their paths, the `justfile` or the workflow changed; scheduled and manual runs enable everything;
+  - each stack job runs its `just check-*` recipe on `ubuntu-latest` and `windows-latest`, so CI and local checks cannot drift;
+  - caches: `setup-uv` (keyed on `uv.lock`, plus the managed Python), `setup-node` pnpm store, `Swatinem/rust-cache` saved from `main` only (PR caches cannot be reused by other branches and would eat the 10 GB quota);
+  - a `ci-ok` job aggregates the results (skipped counts as passed) and is the only check required by branch protection, so path filters never leave a required check pending;
+  - `pip-audit`, `pnpm audit` and `cargo audit` (`just audit-*`) run in a non-blocking job when a lockfile changes and weekly; findings surface as a workflow warning. `cargo-audit` and `just` are installed as prebuilt binaries (`taiki-e/install-action`);
+  - third-party actions are pinned to commit SHAs; `permissions: contents: read` by default; checkout does not persist credentials;
+  - Dependabot: monthly version updates for uv, npm, cargo and actions, minor and patch grouped per ecosystem, at most 3 open PRs each; security updates stay immediate;
+  - `actionlint` runs as a pre-commit hook (`actionlint-py`, ships the binary, no Go toolchain).
+- **Why:** a full warm run costs a few minutes, a docs-only commit about one; supply-chain risk from tag-moved actions is removed; Dependabot noise and the CI runs it triggers stay bounded.
+- **Cost:** audits are warnings, not gates, until the dependency set settles; tighten them later. Changes outside the filtered paths (e.g. `.pre-commit-config.yaml`) do not trigger the stack jobs.

@@ -63,6 +63,7 @@ If the ticket is unclear, contradicts the architecture, or is bigger than expect
 | `just build` | PyInstaller backend + Tauri installer |
 | `just fmt` | format all code in place (ruff, prettier, rustfmt) |
 | `just check-backend` / `just check-frontend` / `just check-desktop` | the parts of `just check`, one stack each |
+| `just audit` | dependency audits: pip-audit, pnpm audit, cargo audit (not part of `check`; non-blocking in CI) |
 
 (Commands are created in T-001; keep this table in sync with the `justfile`. Recipes of later tickets are stubs that print `not implemented: T-xxx` and exit 1; `just check` never calls a stub.)
 

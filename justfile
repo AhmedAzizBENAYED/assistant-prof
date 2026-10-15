@@ -54,6 +54,22 @@ test-backend:
 test-frontend:
     pnpm --dir frontend test
 
+# Dependency audits (not part of `check`: results change over time; non-blocking in CI)
+audit: audit-backend audit-frontend audit-desktop
+
+# pip-audit on the locked backend dependencies
+audit-backend:
+    uv export --directory backend --locked --quiet --no-emit-project --output-file build/audit-requirements.txt
+    uvx pip-audit@2.10.1 --disable-pip --requirement backend/build/audit-requirements.txt
+
+# pnpm audit on the workspace lockfile
+audit-frontend:
+    pnpm audit
+
+# cargo audit on the desktop lockfile (needs `cargo install cargo-audit` locally)
+audit-desktop:
+    cargo audit --file desktop/src-tauri/Cargo.lock
+
 # Format all code in place
 fmt:
     uv run --directory backend --locked ruff check --fix .

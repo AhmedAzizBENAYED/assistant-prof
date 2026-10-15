@@ -32,7 +32,7 @@ Size: **S** ≈ one short session, **M** ≈ one full session, **L** ≈ two ses
   - README: prerequisites (Python 3.12, uv, Node LTS, pnpm, Rust stable, just; on Windows MSVC Build Tools with the Windows SDK; on Linux the Tauri system packages) and quick start.
   - **Acceptance:** fresh clone → `just setup` → `just check` passes on Windows and Linux; `just dev` opens a Tauri window showing a placeholder page.
 
-- [ ] **T-002 · CI pipeline** · S · Depends on: T-001
+- [x] **T-002 · CI pipeline** · S · Depends on: T-001
   - GitHub Actions: on push/PR, matrix ubuntu-latest + windows-latest: backend lint/types/tests, frontend lint/types/tests, `cargo clippy` (ubuntu installs `libwebkit2gtk-4.1-dev` and the other Tauri system packages). Cache uv, pnpm and cargo. `pip-audit` and `pnpm audit` (non-blocking warnings at first).
   - Dependabot for pip (uv), npm, cargo, actions.
   - **Acceptance:** CI green on both OSes; a failing test makes CI red.
