@@ -14,6 +14,11 @@ export default defineConfig({
     target: "es2022",
   },
   test: {
+    // Worker threads instead of the default forked processes (ADR-042): on Windows a forked
+    // worker twice failed to answer vitest's fixed 60 s start handshake ("Timeout waiting for
+    // worker to respond"). Threads start inside the vitest process: no child node.exe, no IPC.
+    // Fine here: jsdom and React load no native modules.
+    pool: "threads",
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     css: false,
