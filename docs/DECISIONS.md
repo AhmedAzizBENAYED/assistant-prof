@@ -206,7 +206,7 @@ Accepted · 2026-10-15
   - recipes for later tickets are stubs that print `not implemented: T-xxx` and exit 1; `just check` never calls a stub;
   - the backend uses the `uv_build` build backend and is pinned to Python 3.12;
   - `rust-toolchain.toml` sits at the repository root (rustup resolves it from the working directory, not from `--manifest-path`) and installs `rustfmt` and `clippy`;
-  - TypeScript is pinned to 6.0.x because typescript-eslint does not support TypeScript 7 yet; lift the pin when it does;
+  - TypeScript is pinned to 6.0.x because typescript-eslint does not support TypeScript 7 yet; lift the pin when it does, and remove the matching `ignore` rule (TypeScript semver-major) in `.github/dependabot.yml` at the same time;
   - pre-commit runs through `uvx` (pinned version in the `justfile`) and only runs fast checks; mypy and the tests run in `just check`.
 - **Why:** one command set for Windows and Linux developers and CI; fewer tools to install; lockfiles for every stack.
 - **Cost:** PowerShell 5.1 reports every failing command as exit code 1 (the exact code is lost, failure is not).
@@ -216,12 +216,12 @@ Accepted · 2026-10-15
 Accepted · 2026-10-15
 - **Context:** the repository is public, so GitHub Actions minutes are free; it may become private later, where Windows minutes count double against the free quota. CI should be fast and frugal either way.
 - **Decision:**
-  - **development workflow:** a single developer commits directly to `main`; no feature branches, no pull requests. Every ticket's commits are pushed to `main` and the CI run is checked; a red run is fixed before any other work starts (CLAUDE.md, step 6). Branch protection only blocks force pushes and deletion of `main`; it does not require status checks, which would block direct pushes;
-  - one workflow (`ci.yml`) triggered by `push` to `main`, `workflow_dispatch` and a weekly schedule; no `pull_request` trigger;
+  - **development workflow:** a single developer commits directly to `main`; no feature branches, no pull requests of their own. The only PRs are Dependabot's: CI runs on them and the developer merges them once CI is green. Every ticket's commits are pushed to `main` and the CI run is checked; a red run is fixed before any other work starts (CLAUDE.md, step 6). Branch protection only blocks force pushes and deletion of `main`; it does not require status checks, which would block direct pushes;
+  - one workflow (`ci.yml`) triggered by `push` to `main`, `pull_request` targeting `main` (in practice Dependabot only), `workflow_dispatch` and a weekly schedule;
   - `concurrency` cancels superseded runs on the same ref (a quick follow-up push replaces the previous run);
-  - a `changes` job (`dorny/paths-filter`, diffing each push against the previous head of `main`) enables the backend, frontend and desktop jobs only when their paths, the `justfile` or the workflow changed; scheduled and manual runs enable everything;
+  - a `changes` job (`dorny/paths-filter`: a push is diffed against the previous head of `main`, a PR against its base branch) enables the backend, frontend and desktop jobs only when their paths, the `justfile` or the workflow changed; scheduled and manual runs enable everything;
   - each stack job runs its `just check-*` recipe on `ubuntu-latest` and `windows-latest`, so CI and local checks cannot drift;
-  - caches: `setup-uv` (keyed on `uv.lock`, plus the managed Python), `setup-node` pnpm store, `Swatinem/rust-cache` for `desktop/src-tauri/target`; everything runs on `main`, so every run can reuse the caches;
+  - caches: `setup-uv` (keyed on `uv.lock`, plus the managed Python), `setup-node` pnpm store, `Swatinem/rust-cache` for `desktop/src-tauri/target`, saved from `main` only (PR caches are scoped to their PR, never reused, and would eat the 10 GB quota);
   - a `ci-ok` job aggregates the results (skipped counts as passed): the single status to look at after a push;
   - `pip-audit`, `pnpm audit` and `cargo audit` (`just audit-*`) run in a non-blocking job when a lockfile changes and weekly; findings surface as a workflow warning. `cargo-audit` and `just` are installed as prebuilt binaries (`taiki-e/install-action`);
   - third-party actions are pinned to commit SHAs; `permissions: contents: read` by default; checkout does not persist credentials;

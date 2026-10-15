@@ -2,8 +2,10 @@
 # Jobs run the same `just` recipes as local development, so CI and `just check` cannot drift.
 name: CI
 
-# Single developer, direct pushes to main: no pull_request trigger (ADR-037).
+# Direct pushes to main; pull requests only come from Dependabot (ADR-037).
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -27,6 +29,9 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # paths-filter lists PR files through the API
     outputs:
       # A skipped filter (schedule, manual run) yields empty outputs: run everything.
       backend: ${{ steps.filter.outputs.backend || 'true' }}
@@ -35,12 +40,12 @@ jobs:
       audit: ${{ steps.filter.outputs.audit || 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           persist-credentials: false
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           filters: |
             shared: &shared
@@ -145,6 +150,8 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: desktop/src-tauri -> target
+          # PR caches are scoped to their PR and never reused; save from main only to spare the 10 GB quota.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: just check-desktop
 
   audit:
